@@ -1,47 +1,61 @@
-<!DOCTYPE html,>
+<!DOCTYPE html>
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<style media="screen">
+	body {background: gainsboro;}
+	#gameZone {width: 70vmin}
+</style>
 </head>
 <body>
 
 	<div id = "gameWindow" style="text-align:center">
 
-	<canvas id="gameZone" width="500" height="500" style="border:1px solid #000000;"></canvas>
+		<canvas id="gameZone" width="500" height="500" style="border:1px solid #000000;"></canvas>
+		<br>
+		<text id="frameCount"></text>
 
-	<br>
-	<br>
+		<br>
+		<br>
 
-  <button id="newGridButton" onclick = "makeCurrentGridRandom()" style = "width:100px"> new random </button>
+	  <button id="newGridButton" onclick = "makeCurrentGridRandom()" style = "width:100px"> new random </button>
 
-	<br>
-	<br>
+		<br>
+		<br>
 
-  <button id="forwardOneStepButton" onclick = "forwardOneStep(currentGame)" style = "width:100px"> +1 frame </button>
-  <button id="startForwardButton" onclick = "play(currentGame,100)" style = "width:100px"> go med </button>
-  <button id="startForwardButton" onclick = "play(currentGame,50)" style = "width:100px"> go fast </button>
-	<button id="stopForwardButton" onclick = "play(currentGame,0)" style = "width:100px"> stop </button>
+	  <button onclick = "forwardOneStep()" style = "width:90px"> +1 frame </button>
+	  <button onclick = "continuousPlay(500)" style = "width:90px"> go slow </button>
+	  <button onclick = "continuousPlay(100)" style = "width:90px"> go med </button>
+		<button onclick = "continuousPlay(20)" style = "width:90px"> go fast </button>
+	  <button onclick = "continuousPlay(0)" style = "width:90px"> go fastest </button>
+		<button onclick = "stopContinuousPlay()" style = "width:90px"> stop </button>
 
-	<br>
-	<br>
+		<br>
 
-	<label for = "customLevelInput">input custom grid: </label>
-	<input type = "text" id = "customLevelInput">
-	<button id = "getCustomLevel", onclick = "getCustomLevel()"> get </button>
-	<button id = "setCustomLevel", onclick = "setCustomLevel()"> set </button>
+		<label for="frame-input">jump to frame #:</label>
+		<input type="number" id="frame-input" style="width:40px">
+		<button onclick="goToFrame()">go</button>
+
+		<br>
+		<br>
+
+		<label for = "customLevelInput">input custom grid: </label>
+		<input type = "text" id = "customLevelInput">
+		<button id = "getCustomLevel", onclick = "getCustomLevel()"> get </button>
+		<button id = "setCustomLevel", onclick = "setCustomLevel()"> set </button>
 
 
-	<p id = "loopFound", style = "display: none" > no loop yet you sneaky html viewer </p>
-	<p id = "timeTillLoop", style = "display : none"> get outta here! </p>
+		<p id = "loopFound", style = "display: none" > no loop yet you sneaky html viewer </p>
+		<p id = "timeTillLoop", style = "display : none"> get outta here! </p>
 
-	<br>
-	<br>
+		<br>
+		<br>
 
-	<button id="displayVortsButton" onclick = "toggleDisplayVorts(currentGame)" style = "width:100px"> hide vorts </button>
-	<button id="displayVortLocsButton" onclick = "toggleDisplayVortLocs(currentGame)" style = "width:130px"> show vort coords </button>
+		<button id="displayVortsButton" onclick = "toggleDisplayVorts()" style = "width:100px"> hide vorts </button>
+		<button id="displayVortLocsButton" onclick = "toggleDisplayVortLocs()" style = "width:130px"> show vort coords </button>
 
-	<p id="vortNum" ># vortices: 10</p>
-	<p id = "vortLocs", style = "display:none"></p>
+		<p id="vortNum"># vortices: 10</p>
+		<p id="vortLocs" style = "display:none"></p>
 
 
 
