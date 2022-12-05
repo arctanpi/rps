@@ -28,7 +28,7 @@ function getVortsAndString(grid) {
 }
 
 function isVort(grid,x,y) {
-  var neb = vortNb(x,y,grid.length)
+  var neb = vortNb(x,y)
   var vort = []
   for (var i = 0; i < 4; i++) {
     vort.push(grid[neb[i][0]][neb[i][1]])
@@ -39,11 +39,11 @@ function isVort(grid,x,y) {
   return false
 }
 
-function vortNb(x,y,N) {      // outputs the cells required for tracking vortices
-  return [ [(x-1+N) % N, (y-1+N) % N],
-           [(x+N) % N, (y-1+N) % N],
-           [(x-1+N) % N, (y+N) % N],
-           [(x+N) % N, (y+N) % N]
+function vortNb(x,y) {      // outputs the cells required for tracking vortices
+  return [ [(x-1+xSize) % xSize, (y-1+ySize) % ySize],
+           [(x+xSize) % xSize, (y-1+ySize) % ySize],
+           [(x-1+xSize) % xSize, (y+ySize) % ySize],
+           [(x+xSize) % xSize, (y+ySize) % ySize]
          ]
 }
 
@@ -67,7 +67,7 @@ function updateCell(grid,i,j){
   // a 0 becomes a 1 if it has 3 or more 1 neighbours
   // a 1 becomes a 2 if it has 3 or more 2 neighbours
   // a 2 becomes a 0 if it has 3 or more 0 neighbours
-  var adj = adjacentTo(i,j,grid.length);
+  var adj = adjacentTo(i,j);
   var val = grid[i][j];
   // not sure if I really need to do the +4 thing here but w/e
   var val_enemy = (val+4) % 3;
@@ -90,19 +90,19 @@ function updateCell(grid,i,j){
   return new_val
 }
 
-function adjacentTo(x,y,N) {
+function adjacentTo(x,y) {
   // given x and y in the N x N grid, returns the adjacent
   // coordinates. wraps around, hence the need for N
   // why does javascript require this (x+N) % N nonsense?
   // who can say. whatever. let's hope it does what I think it does
-  return [ [(x-1+N) % N, (y-1+N) % N],
-           [(x+N) % N, (y-1+N) % N],
-           [(x+1+N) % N, (y-1+N) % N],
-           [(x-1+N) % N, (y+N) % N],
-           [(x+1+N) % N, (y+N) % N],
-           [(x-1+N) % N, (y+1+N) % N],
-           [(x+N) % N, (y+1+N) % N],
-           [(x+1+N) % N, (y+1+N) % N]
+  return [ [(x-1+xSize) % xSize, (y-1+ySize) % ySize],
+           [(x+xSize) % xSize, (y-1+ySize) % ySize],
+           [(x+1+xSize) % xSize, (y-1+ySize) % ySize],
+           [(x-1+xSize) % xSize, (y+ySize) % ySize],
+           [(x+1+xSize) % xSize, (y+ySize) % ySize],
+           [(x-1+xSize) % xSize, (y+1+ySize) % ySize],
+           [(x+xSize) % xSize, (y+1+ySize) % ySize],
+           [(x+1+xSize) % xSize, (y+1+ySize) % ySize]
 
          ]
        }
@@ -112,9 +112,8 @@ function drawGrid(){
   var yUnit = canvas.height / ySize;
   //
   var grid = currentGame.frames[currentGame.currentFrame];
-  var len = grid.length
-  for (var i = 0; i < len; i++){
-    for (var j =0; j < len; j++) {
+  for (var i = 0; i < grid.length; i++){
+    for (var j = 0; j < grid[i].length; j++) {
       ctx.beginPath();
     	ctx.fillStyle = colours[grid[i][j]];
     	ctx.fillRect(xUnit*i,yUnit*j,xUnit,yUnit);
@@ -138,7 +137,7 @@ function drawGrid(){
 var drawVortex = function (x, y) {
   ctx.fillStyle = "#000000"
   ctx.beginPath();
-  ctx.arc(x, y, (canvas.width / xSize)/3, 0, 2 * Math.PI);
+  ctx.arc(x, y, (canvas.width / Math.max(xSize, ySize))/3, 0, 2 * Math.PI);
   ctx.fill();
 }
 
@@ -302,8 +301,12 @@ function getCustomLevel() {
 }
 
 function setCustomLevel() {
-  var gridStr = document.getElementById('customLevelInput').value;
-  initGame(JSON.parse(gridStr));
+  var gridStr = JSON.parse(document.getElementById('customLevelInput').value);
+  xSize = gridStr.length;
+  ySize = gridStr[0].length;
+  document.getElementById('x-input').value = xSize;
+  document.getElementById('y-input').value = ySize;
+  initGame(gridStr);
 }
 
 function makeCurrentGridRandom(){
@@ -320,6 +323,18 @@ function generateRandomGrid(x,y){
     grid.push(new_row)
   }
   return grid;
+}
+
+var changeBoardDimensions = function () {
+  var xDim = Number(document.getElementById('x-input').value);
+  var yDim = Number(document.getElementById('y-input').value);
+  if (!Number.isInteger(xDim) || xDim < 3 || !Number.isInteger(yDim) || yDim < 3) {
+    alert("no!")
+  } else {
+    xSize = xDim;
+    ySize = yDim;
+    makeCurrentGridRandom();
+  }
 }
 
 makeCurrentGridRandom();
