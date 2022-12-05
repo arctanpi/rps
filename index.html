@@ -18,11 +18,6 @@
 		<br>
 		<br>
 
-	  <button id="newGridButton" onclick = "makeCurrentGridRandom()" style = "width:100px"> new random </button>
-
-		<br>
-		<br>
-
 	  <button onclick = "forwardOneStep()" style = "width:90px"> +1 frame </button>
 	  <button onclick = "continuousPlay(500)" style = "width:90px"> go slow </button>
 	  <button onclick = "continuousPlay(100)" style = "width:90px"> go med </button>
@@ -39,11 +34,24 @@
 		<br>
 		<br>
 
+		<button id="newGridButton" onclick = "makeCurrentGridRandom()" style = "width:100px"> new random </button>
+
+		<br>
+		<br>
+
 		<label for = "customLevelInput">input custom grid: </label>
 		<input type = "text" id = "customLevelInput">
 		<button id = "getCustomLevel", onclick = "getCustomLevel()"> get </button>
 		<button id = "setCustomLevel", onclick = "setCustomLevel()"> set </button>
 
+		<br>
+		<br>
+
+		<label for="x-input">board width</label>
+		<input type="number" id="x-input" style="width:36px" value="50">
+		<label for="y-input">board height</label>
+		<input type="number" id="y-input" style="width:36px" value="50">
+		<button onclick="changeBoardDimensions()">set board dimensions</button>
 
 		<p id = "loopFound", style = "display: none" > no loop yet you sneaky html viewer </p>
 		<p id = "timeTillLoop", style = "display : none"> get outta here! </p>
