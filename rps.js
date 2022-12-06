@@ -5,49 +5,70 @@ var canvas = $('gameZone');
 var ctx = canvas.getContext('2d');
 
 var colours = ["#D81B60","#FFC107","#1E88E5"];
-var xSize = 10;
-var ySize = 10;
+var xSize = 50;
+var ySize = 50;
 var currentGame = {};
 var displayVortLocs = false;
 var displayVorts = true;
 var paintDown = false;
 var brushColor = false;
+var brushSize = 1;
 
 
-var getCoords = function (e) {
+var getCoords = function (e) {  // from mouse position over canvas
   var rect = e.target.getBoundingClientRect();
   var xCoord = Math.floor((e.clientX - rect.left) / (rect.width / xSize));
   var yCoord = Math.floor((e.clientY - rect.top) / (rect.height / ySize));
   return {x:xCoord, y:yCoord};
 }
+var getArea = function (coords, width) { // width must be odd integer, does NOT wrap
+  var arr = [];
+  var radius = (width-1)/2;
+  for (var i = 0; i < width; i++) {
+    var x = (coords.x - radius) + i;
+    if (x >= 0 && x < xSize) {
+      for (var j = 0; j < width; j++) {
+        var y = (coords.y - radius) + j;
+        if (y >= 0 && y < ySize) {
+          arr.push([x,y]);
+        }
+      }
+    }
+  }
+  //
+  return arr;
+}
+
 var startPaint = function (e) {
   if (brushColor === false) {return;}
   var coords = getCoords(e);
   paintDown = getCoords(e);
-  paintSpot(coords);
+  applyPaint(getArea(coords, brushSize));
 }
 var continuePaint = function (e) {
   if (paintDown) {
     var coords = getCoords(e);
     if (coords.x !== paintDown.x || coords.y !== paintDown.y) {
       paintDown = coords;
-      paintSpot(coords);
+      applyPaint(getArea(coords, brushSize));
     }
   }
 }
-var stopPaint = function (e) {
-  paintDown = false;
-}
-var mouseOut = function (e) {
+var stopPaint = function () {
   paintDown = false;
 }
 
-var paintSpot = function (coords) {
+var applyPaint = function (coordList) {
   var grid = currentGame.frames[currentGame.currentFrame];
-  grid[coords.x][coords.y] = brushColor;
+  for (var i = 0; i < coordList.length; i++) {
+    grid[coordList[i][0]][coordList[i][1]] = brushColor;
+  }
   initGame(grid);
 }
 
+var changeBrushSize = function () {
+  brushSize = $("brush-size-select").value;
+}
 var selectPaint = function (color, btn) {
   stopContinuousPlay();
   deselectPaint();
@@ -56,7 +77,7 @@ var selectPaint = function (color, btn) {
 }
 var deselectPaint = function () {
   brushColor = false;
-  var buttons = $("paintContainer").childNodes;
+  var buttons = $("color-container").childNodes;
   for (var i = 0; i < buttons.length; i++) {
     buttons[i].classList.remove('selected');
   }
@@ -71,7 +92,7 @@ var setPaintContainer = function () {
         selectPaint(index, btn);
       }
     })(i, colorButton);
-    $("paintContainer").appendChild(colorButton);
+    $("color-container").appendChild(colorButton);
   }
 }
 setPaintContainer();
