@@ -1,18 +1,83 @@
 "use strict";
 
-var canvas = document.getElementById('gameZone');
+var $ = function (x) {return document.getElementById(x);}
+var canvas = $('gameZone');
 var ctx = canvas.getContext('2d');
 
 var colours = ["#D81B60","#FFC107","#1E88E5"];
-var xSize = 50;
-var ySize = 50;
+var xSize = 10;
+var ySize = 10;
 var currentGame = {};
 var displayVortLocs = false;
 var displayVorts = true;
+var paintDown = false;
+var brushColor = false;
 
 
+var getCoords = function (e) {
+  var rect = e.target.getBoundingClientRect();
+  var xCoord = Math.floor((e.clientX - rect.left) / (rect.width / xSize));
+  var yCoord = Math.floor((e.clientY - rect.top) / (rect.height / ySize));
+  return {x:xCoord, y:yCoord};
+}
+var startPaint = function (e) {
+  if (brushColor === false) {return;}
+  var coords = getCoords(e);
+  paintDown = getCoords(e);
+  paintSpot(coords);
+}
+var continuePaint = function (e) {
+  if (paintDown) {
+    var coords = getCoords(e);
+    if (coords.x !== paintDown.x || coords.y !== paintDown.y) {
+      paintDown = coords;
+      paintSpot(coords);
+    }
+  }
+}
+var stopPaint = function (e) {
+  paintDown = false;
+}
+var mouseOut = function (e) {
+  paintDown = false;
+}
+
+var paintSpot = function (coords) {
+  var grid = currentGame.frames[currentGame.currentFrame];
+  grid[coords.x][coords.y] = brushColor;
+  initGame(grid);
+}
+
+var selectPaint = function (color, btn) {
+  stopContinuousPlay();
+  deselectPaint();
+  brushColor = color;
+  btn.classList.add('selected');
+}
+var deselectPaint = function () {
+  brushColor = false;
+  var buttons = $("paintContainer").childNodes;
+  for (var i = 0; i < buttons.length; i++) {
+    buttons[i].classList.remove('selected');
+  }
+}
+var setPaintContainer = function () {
+  for (var i = 0; i < colours.length; i++) {
+    var colorButton = document.createElement("button");
+    colorButton.setAttribute('class', 'color-button');
+    colorButton.style.background = colours[i];
+    (function (index, btn) {
+      colorButton.onclick = function () {
+        selectPaint(index, btn);
+      }
+    })(i, colorButton);
+    $("paintContainer").appendChild(colorButton);
+  }
+}
+setPaintContainer();
 
 function getVortsAndString(grid) {
+  // returns both crunched grid data down to a string like 0120210, and an array of vortices
   var gridStr = "";
   var vorts = [];
 
@@ -74,10 +139,8 @@ function updateCell(grid,i,j){
   var count = 0;
   for (var i = 0; i < 8; i++) {
     var ac = adj[i]
-    //console.log(grid[ac[0]][ac[1]] )
     if (grid[ac[0]][ac[1]] == val_enemy) {
       count += 1
-      //console.log(count)
     }
   }
 
@@ -143,10 +206,10 @@ var drawVortex = function (x, y) {
 
 var refreshDisplay = function () {
   if (displayVortLocs) {
-    document.getElementById('vortLocs').innerHTML = vortString(currentGame.vorts[currentGame.currentFrame])
+    $('vortLocs').innerHTML = vortString(currentGame.vorts[currentGame.currentFrame]);
   }
-  document.getElementById('vortNum').innerHTML = "# vortices: " + currentGame.vorts[currentGame.currentFrame].length.toString();
-  document.getElementById('frameCount').innerHTML = currentGame.currentFrame;
+  $('vortNum').innerHTML = "# vortices: " + currentGame.vorts[currentGame.currentFrame].length.toString();
+  $('frameCount').innerHTML = currentGame.currentFrame;
   drawGrid();
 }
 
@@ -167,11 +230,11 @@ function vortString(vortList) {
 function toggleDisplayVortLocs() {
   displayVortLocs = !displayVortLocs
   if (displayVortLocs) {
-    document.getElementById('vortLocs').innerHTML = vortString(currentGame.vorts[currentGame.currentFrame]);
-    document.getElementById("vortLocs").style.display = "block"
+    $('vortLocs').innerHTML = vortString(currentGame.vorts[currentGame.currentFrame]);
+    $("vortLocs").style.display = "block"
     displayVortLocsButton.innerHTML = "hide vort coords"
   } else {
-    document.getElementById("vortLocs").style.display = "none"
+    $("vortLocs").style.display = "none"
     displayVortLocsButton.innerHTML = "show vort coords"
   }
 }
@@ -211,10 +274,10 @@ function forwardOneStep(){
       game.loopLength = (game.frames.length - 1) - game.book[next.gridStr];
       game.loopStart = game.frames.length - game.loopLength - 1;
       game.currentFrame = game.loopStart;
-      document.getElementById("timeTillLoop").innerHTML = "iterations until loop: " + game.loopStart;
-      document.getElementById("loopFound").innerHTML = "loop length: " + game.loopLength.toString()
-      document.getElementById("timeTillLoop").style.display = "block"
-      document.getElementById("loopFound").style.display = "block"
+      $("timeTillLoop").innerHTML = "iterations until loop: " + game.loopStart;
+      $("loopFound").innerHTML = "loop length: " + game.loopLength.toString()
+      $("timeTillLoop").style.display = "block"
+      $("loopFound").style.display = "block"
     } else {
       game.book[next.gridStr] = game.frames.length-1;
     }
@@ -246,7 +309,7 @@ var stopContinuousPlay = function () {
 
 var goToFrame = function () {
   stopContinuousPlay();
-  var frame = Number(document.getElementById('frame-input').value);
+  var frame = Number($('frame-input').value);
   if (!Number.isInteger(frame) || frame < 0 || frame > currentGame.frames.length) {
     alert("no!")
   } else {
@@ -270,8 +333,8 @@ var initGame = function (grid) {
 
   refreshDisplay();
 
-  document.getElementById("loopFound").style.display = "none";
-  document.getElementById("timeTillLoop").style.display = "none";
+  $("loopFound").style.display = "none";
+  $("timeTillLoop").style.display = "none";
 }
 
 function getCustomLevel() {
@@ -297,16 +360,16 @@ function getCustomLevel() {
 
   }
   str += "]"
-  document.getElementById('customLevelInput').value = str;
+  $('customLevelInput').value = str;
 }
 
 function setCustomLevel() {
-  var gridStr = JSON.parse(document.getElementById('customLevelInput').value);
-  xSize = gridStr.length;
-  ySize = gridStr[0].length;
-  document.getElementById('x-input').value = xSize;
-  document.getElementById('y-input').value = ySize;
-  initGame(gridStr);
+  var gridObj = JSON.parse($('customLevelInput').value);
+  xSize = gridObj.length;
+  ySize = gridObj[0].length;
+  $('x-input').value = xSize;
+  $('y-input').value = ySize;
+  initGame(gridObj);
 }
 
 function makeCurrentGridRandom(){
@@ -326,8 +389,8 @@ function generateRandomGrid(x,y){
 }
 
 var changeBoardDimensions = function () {
-  var xDim = Number(document.getElementById('x-input').value);
-  var yDim = Number(document.getElementById('y-input').value);
+  var xDim = Number($('x-input').value);
+  var yDim = Number($('y-input').value);
   if (!Number.isInteger(xDim) || xDim < 3 || !Number.isInteger(yDim) || yDim < 3) {
     alert("no!")
   } else {
