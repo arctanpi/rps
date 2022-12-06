@@ -4,7 +4,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <style media="screen">
 	body {background: gainsboro;}
-	#gameZone {width: 70vmin}
 	.color-button {
 		box-sizing: border-box;
 		margin: 5px;
@@ -16,87 +15,92 @@
 	.selected {
 		box-shadow: 0px 0px 2px 3px #ffffff;
 	}
+	#gameWindow {
+		position: relative;
+		height: 70.5vmin;
+	}
+	canvas {
+		width: 70vmin;
+		position: absolute;
+		left: 50%;
+		transform: translate(-50%, 0%);
+	}
 </style>
 </head>
-<body onmouseup="stopPaint()">
+<body style="text-align:center" onmouseup="stopPaint()">
 
-	<div id = "gameWindow" style="text-align:center">
-
-		<canvas id="gameZone" width="500" height="500" onmousedown="startPaint(event)" onmousemove="continuePaint(event)" style="border:1px solid #000000;"></canvas>
-		<br>
-		<text id="frameCount"></text>
-
-		<br>
-		<br>
-
-	  <button onclick = "forwardOneStep()" style = "width:90px"> +1 frame </button>
-	  <button onclick = "deselectPaint(); continuousPlay(500)" style = "width:90px"> go slow </button>
-	  <button onclick = "deselectPaint(); continuousPlay(100)" style = "width:90px"> go med </button>
-		<button onclick = "deselectPaint(); continuousPlay(20)" style = "width:90px"> go fast </button>
-	  <button onclick = "deselectPaint(); continuousPlay(0)" style = "width:90px"> go fastest </button>
-		<button onclick = "stopContinuousPlay()" style = "width:90px"> stop </button>
-
-		<br>
-
-		<label for="frame-input">jump to frame #:</label>
-		<input type="number" id="frame-input" style="width:40px" value=0>
-		<button onclick="goToFrame()">go</button>
-
-		<br>
-		<br>
-
-		<div id="paint-options">
-			<box id="color-container"></box>
-			<label for = "brush-size-select" style="vertical-align: sub;">brush size:</label>
-			<select id="brush-size-select" onchange="changeBrushSize()" style="vertical-align: sub;">
-				<option>1</option>
-				<option>3</option>
-				<option>5</option>
-				<option>9</option>
-				<option>15</option>
-				<option>23</option>
-			</select>
-		</div>
-
-		<br>
-
-		<button onclick = "makeCurrentGridRandom()" style = "width:100px"> new random </button>
-
-		<br>
-		<br>
-
-		<label for = "customLevelInput">input custom grid: </label>
-		<input type = "text" id = "customLevelInput">
-		<button id = "getCustomLevel", onclick = "getCustomLevel()"> get </button>
-		<button id = "setCustomLevel", onclick = "setCustomLevel()"> set </button>
-
-		<br>
-		<br>
-
-		<label for="x-input">board width</label>
-		<input type="number" id="x-input" style="width:36px" value="50">
-		<label for="y-input">board height</label>
-		<input type="number" id="y-input" style="width:36px" value="50">
-		<button onclick="changeBoardDimensions()">set board dimensions</button>
-
-		<p id = "loopFound", style = "display: none" > no loop yet you sneaky html viewer </p>
-		<p id = "timeTillLoop", style = "display : none"> get outta here! </p>
-
-		<br>
-		<br>
-
-		<button id="displayVortsButton" onclick = "toggleDisplayVorts()" style = "width:100px"> hide vorts </button>
-		<button id="displayVortLocsButton" onclick = "toggleDisplayVortLocs()" style = "width:130px"> show vort coords </button>
-
-		<p id="vortNum"># vortices: 10</p>
-		<p id="vortLocs" style = "display:none"></p>
-
-
-
+	<div id="gameWindow">
+		<canvas id="gameZone" width="500" height="500" style="border:1px solid #000000;"></canvas>
+		<canvas id="overlay" width="500" height="500" onmousedown="startPaint(event)" onmousemove="mouseMove(event)" onmouseleave="mouseLeave()" style="border:1px solid #000000;"></canvas>
 	</div>
 
+	<text id="frameCount"></text>
+
+	<br>
+	<br>
+
+	<button onclick = "forwardOneStep()" style = "width:90px"> +1 frame </button>
+	<button onclick = "deselectPaint(); continuousPlay(500)" style = "width:90px"> go slow </button>
+	<button onclick = "deselectPaint(); continuousPlay(100)" style = "width:90px"> go med </button>
+	<button onclick = "deselectPaint(); continuousPlay(20)" style = "width:90px"> go fast </button>
+	<button onclick = "deselectPaint(); continuousPlay(0)" style = "width:90px"> go fastest </button>
+	<button onclick = "stopContinuousPlay()" style = "width:90px"> stop </button>
+
+	<br>
+
+	<label for="frame-input">jump to frame #:</label>
+	<input type="number" id="frame-input" style="width:40px" value=0>
+	<button onclick="goToFrame()">go</button>
+
+	<br>
+	<br>
+
+	<div id="paint-options">
+		<box id="color-container"></box>
+		<label for = "brush-size-select" style="vertical-align: sub;">brush size:</label>
+		<select id="brush-size-select" onchange="changeBrushSize()" style="vertical-align: sub;">
+			<option>1</option>
+			<option>3</option>
+			<option>5</option>
+			<option>9</option>
+			<option>15</option>
+			<option>23</option>
+		</select>
+	</div>
+
+	<br>
+
+	<button onclick = "makeCurrentGridRandom()" style = "width:100px"> new random </button>
+
+	<br>
+	<br>
+
+	<label for = "customLevelInput">input custom grid: </label>
+	<input type = "text" id = "customLevelInput">
+	<button id = "getCustomLevel", onclick = "getCustomLevel()"> get </button>
+	<button id = "setCustomLevel", onclick = "setCustomLevel()"> set </button>
+
+	<br>
+	<br>
+
+	<label for="x-input">board width</label>
+	<input type="number" id="x-input" style="width:36px" value="50">
+	<label for="y-input">board height</label>
+	<input type="number" id="y-input" style="width:36px" value="50">
+	<button onclick="changeBoardDimensions()">set board dimensions</button>
+
+	<p id = "loopFound", style = "display: none" > no loop yet you sneaky html viewer </p>
+	<p id = "timeTillLoop", style = "display : none"> get outta here! </p>
+
+	<br>
+	<br>
+
+	<button id="displayVortsButton" onclick = "toggleDisplayVorts()" style = "width:100px"> hide vorts </button>
+	<button id="displayVortLocsButton" onclick = "toggleDisplayVortLocs()" style = "width:130px"> show vort coords </button>
+
+	<p id="vortNum"># vortices: 10</p>
+	<p id="vortLocs" style = "display:none"></p>
+
   <script src = "rps.js"></script>
-
-
 </body>
 </html>
