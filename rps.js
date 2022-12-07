@@ -3,6 +3,7 @@
 var $ = function (x) {return document.getElementById(x);}
 var canvas = $('gameZone');
 var ctx = canvas.getContext('2d');
+var ctxOverlay = $('overlay').getContext('2d');
 
 var colours = ["#D81B60","#FFC107","#1E88E5"];
 var xSize = 50;
@@ -45,17 +46,33 @@ var startPaint = function (e) {
   paintDown = getCoords(e);
   applyPaint(getArea(coords, brushSize));
 }
-var continuePaint = function (e) {
+var mouseMove = function (e) {
   if (paintDown) {
+    ctxOverlay.clearRect(0, 0, canvas.width, canvas.height);
     var coords = getCoords(e);
     if (coords.x !== paintDown.x || coords.y !== paintDown.y) {
       paintDown = coords;
       applyPaint(getArea(coords, brushSize));
     }
+  } else if (brushColor !== false) {
+    ctxOverlay.clearRect(0, 0, canvas.width, canvas.height);
+    //
+    var coords = getCoords(e);
+    var xUnit = canvas.width / xSize;
+    var yUnit = canvas.height / ySize;
+    var startX = xUnit * (coords.x - (brushSize-1)/2);
+    var startY = yUnit * (coords.y - (brushSize-1)/2);
+    //
+    ctxOverlay.beginPath();
+    ctxOverlay.fillStyle = 'rgb(80, 80, 80, .7)';
+    ctxOverlay.fillRect(startX, startY, xUnit*brushSize, yUnit*brushSize);
   }
 }
 var stopPaint = function () {
   paintDown = false;
+}
+var mouseLeave = function () {
+  ctxOverlay.clearRect(0, 0, canvas.width, canvas.height);
 }
 
 var applyPaint = function (coordList) {
@@ -77,6 +94,7 @@ var selectPaint = function (color, btn) {
 }
 var deselectPaint = function () {
   brushColor = false;
+  ctxOverlay.clearRect(0, 0, canvas.width, canvas.height);
   var buttons = $("color-container").childNodes;
   for (var i = 0; i < buttons.length; i++) {
     buttons[i].classList.remove('selected');
