@@ -25,13 +25,14 @@
 		left: 50%;
 		transform: translate(-50%, 0%);
 	}
+	.removed {display: none;}
 </style>
 </head>
 <body style="text-align:center" onmouseup="stopPaint()">
 
 	<div id="gameWindow">
 		<canvas id="gameZone" width="500" height="500" style="border:1px solid #000000;"></canvas>
-		<canvas id="overlay" width="500" height="500" onmousedown="startPaint(event)" onmousemove="mouseMove(event)" onmouseleave="mouseLeave()" style="border:1px solid #000000;"></canvas>
+		<canvas id="overlay" class="removed" width="500" height="500" onmousedown="startPaint(event)" onmousemove="mouseMove(event)" onmouseleave="mouseLeave()" style="border:1px solid #000000;"></canvas>
 	</div>
 
 	<text id="frameCount"></text>
@@ -39,7 +40,7 @@
 	<br>
 	<br>
 
-	<button onclick = "forwardOneStep()" style = "width:90px"> +1 frame </button>
+	<button onclick = "deselectPaint(); forwardOneStep()" style = "width:90px"> +1 frame </button>
 	<button onclick = "deselectPaint(); continuousPlay(500)" style = "width:90px"> go slow </button>
 	<button onclick = "deselectPaint(); continuousPlay(100)" style = "width:90px"> go med </button>
 	<button onclick = "deselectPaint(); continuousPlay(20)" style = "width:90px"> go fast </button>

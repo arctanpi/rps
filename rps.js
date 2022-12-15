@@ -90,10 +90,12 @@ var selectPaint = function (color, btn) {
   stopContinuousPlay();
   deselectPaint();
   brushColor = color;
+  $('overlay').classList.remove('removed');
   btn.classList.add('selected');
 }
 var deselectPaint = function () {
   brushColor = false;
+  $('overlay').classList.add('removed');
   ctxOverlay.clearRect(0, 0, canvas.width, canvas.height);
   var buttons = $("color-container").childNodes;
   for (var i = 0; i < buttons.length; i++) {
@@ -108,6 +110,9 @@ var setPaintContainer = function () {
     (function (index, btn) {
       colorButton.onclick = function () {
         selectPaint(index, btn);
+      }
+      colorButton.ondblclick = function () {
+        console.log(btn, 'make this pop open a thing to change the paint color');
       }
     })(i, colorButton);
     $("color-container").appendChild(colorButton);
