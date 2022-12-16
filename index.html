@@ -25,13 +25,19 @@
 		left: 50%;
 		transform: translate(-50%, 0%);
 	}
+	.removed {display: none;}
 </style>
 </head>
 <body style="text-align:center" onmouseup="stopPaint()">
 
+	<p id="bulk-heading" class="removed"></p>
+	<p id="bulk-status" class="removed"></p>
+	
+	<wrapper id="not-bulk">
+
 	<div id="gameWindow">
 		<canvas id="gameZone" width="500" height="500" style="border:1px solid #000000;"></canvas>
-		<canvas id="overlay" width="500" height="500" onmousedown="startPaint(event)" onmousemove="mouseMove(event)" onmouseleave="mouseLeave()" style="border:1px solid #000000;"></canvas>
+		<canvas id="overlay" class="removed" width="500" height="500" onmousedown="startPaint(event)" onmousemove="mouseMove(event)" onmouseleave="mouseLeave()" style="border:1px solid #000000;"></canvas>
 	</div>
 
 	<text id="frameCount"></text>
@@ -39,7 +45,7 @@
 	<br>
 	<br>
 
-	<button onclick = "forwardOneStep()" style = "width:90px"> +1 frame </button>
+	<button onclick = "deselectPaint(); forwardOneStep()" style = "width:90px"> +1 frame </button>
 	<button onclick = "deselectPaint(); continuousPlay(500)" style = "width:90px"> go slow </button>
 	<button onclick = "deselectPaint(); continuousPlay(100)" style = "width:90px"> go med </button>
 	<button onclick = "deselectPaint(); continuousPlay(20)" style = "width:90px"> go fast </button>
@@ -89,8 +95,8 @@
 	<input type="number" id="y-input" style="width:36px" value="50">
 	<button onclick="changeBoardDimensions()">set board dimensions</button>
 
-	<p id = "loopFound", style = "display: none" > no loop yet you sneaky html viewer </p>
-	<p id = "timeTillLoop", style = "display : none"> get outta here! </p>
+	<p id = "loopFound" class="removed"> no loop yet you sneaky html viewer </p>
+	<p id = "timeTillLoop" class="removed"> get outta here! </p>
 
 	<br>
 	<br>
@@ -99,7 +105,14 @@
 	<button id="displayVortLocsButton" onclick = "toggleDisplayVortLocs()" style = "width:130px"> show vort coords </button>
 
 	<p id="vortNum"># vortices: 10</p>
-	<p id="vortLocs" style = "display:none"></p>
+	<p id="vortLocs" class="removed"></p>
+	<br>
+
+	<label for="">get stats for</label>
+	<input type="number" id="bulk-input" style="width:50px" value=10>
+	<label>random grids with current settings</label>
+	<button onclick="bulkRunner()">run</button>
+	</wrapper>
 
   <script src = "rps.js"></script>
 </body>

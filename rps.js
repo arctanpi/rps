@@ -90,10 +90,12 @@ var selectPaint = function (color, btn) {
   stopContinuousPlay();
   deselectPaint();
   brushColor = color;
+  $('overlay').classList.remove('removed');
   btn.classList.add('selected');
 }
 var deselectPaint = function () {
   brushColor = false;
+  $('overlay').classList.add('removed');
   ctxOverlay.clearRect(0, 0, canvas.width, canvas.height);
   var buttons = $("color-container").childNodes;
   for (var i = 0; i < buttons.length; i++) {
@@ -108,6 +110,9 @@ var setPaintContainer = function () {
     (function (index, btn) {
       colorButton.onclick = function () {
         selectPaint(index, btn);
+      }
+      colorButton.ondblclick = function () {
+        console.log(btn, 'make this pop open a thing to change the paint color');
       }
     })(i, colorButton);
     $("color-container").appendChild(colorButton);
@@ -270,10 +275,10 @@ function toggleDisplayVortLocs() {
   displayVortLocs = !displayVortLocs
   if (displayVortLocs) {
     $('vortLocs').innerHTML = vortString(currentGame.vorts[currentGame.currentFrame]);
-    $("vortLocs").style.display = "block"
+    $("vortLocs").classList.remove('removed');
     displayVortLocsButton.innerHTML = "hide vort coords"
   } else {
-    $("vortLocs").style.display = "none"
+    $("vortLocs").classList.add('removed');
     displayVortLocsButton.innerHTML = "show vort coords"
   }
 }
@@ -293,7 +298,7 @@ function toggleDisplayVorts() {
 
 
 // THIS makes the world go around
-function forwardOneStep(){
+function forwardOneStep(nonVisual){
   var game = currentGame;
   game.currentFrame++;
   if (game.frames[game.currentFrame]) {   // we already have data for this frame
@@ -309,35 +314,46 @@ function forwardOneStep(){
     if (game.book[next.gridStr] !== undefined) {  // we have seen this page before
       stopContinuousPlay();
       //alert('you loop!');
+      //
       game.finalFrame = game.currentFrame;
       game.loopLength = (game.frames.length - 1) - game.book[next.gridStr];
       game.loopStart = game.frames.length - game.loopLength - 1;
-      game.currentFrame = game.loopStart;
-      $("timeTillLoop").innerHTML = "iterations until loop: " + game.loopStart;
-      $("loopFound").innerHTML = "loop length: " + game.loopLength.toString()
-      $("timeTillLoop").style.display = "block"
-      $("loopFound").style.display = "block"
+      //
+      if (nonVisual) {
+        return nonVisual({
+          tilLoop: game.loopStart,
+          loopLength: game.loopLength,
+          finalVortexCount: next.vorts.length,
+          startingGrid: exportGridToJsonString(game.frames[0]),
+        });
+      } else {
+        game.currentFrame = game.loopStart;
+        $("timeTillLoop").innerHTML = "iterations until loop: " + game.loopStart;
+        $("loopFound").innerHTML = "loop length: " + game.loopLength.toString()
+        $("timeTillLoop").classList.remove('removed');
+        $("loopFound").classList.remove('removed');
+      }
     } else {
       game.book[next.gridStr] = game.frames.length-1;
     }
   }
-  if (game.loopLength === -1) {
-  }
   //
-  refreshDisplay();
+  if (!nonVisual) {
+    refreshDisplay();
+  }
 }
 
 
 // this makes the world go rounder keep going
-var continuousPlay = function (delay) {    // delay in mS between frame updates
+var continuousPlay = function (delay, nonVisual) {    // delay in mS between frame updates
   // unschedule the next scheduled step, in case we are here via button press and not on schedule
   clearTimeout(currentGame.timer);
   // schedule the next step
   currentGame.timer = setTimeout(function () {
-    continuousPlay(delay);
+    continuousPlay(delay, nonVisual);
   }, delay);
   // actually take a step
-  forwardOneStep();
+  forwardOneStep(nonVisual);
   // taking a step has to come after scheduling the following step so that the step can cancel the next one if need be
 }
 
@@ -358,7 +374,7 @@ var goToFrame = function () {
   }
 }
 
-var initGame = function (grid) {
+var initGame = function (grid, nonVisual) {
   stopContinuousPlay();
 
   var obj = getVortsAndString(grid);
@@ -370,17 +386,15 @@ var initGame = function (grid) {
   currentGame.loopLength = -1;
   currentGame.currentFrame = 0;
 
-  refreshDisplay();
+  if (!nonVisual) {
+    refreshDisplay();
 
-  $("loopFound").style.display = "none";
-  $("timeTillLoop").style.display = "none";
+    $("loopFound").classList.add('removed');
+    $("timeTillLoop").classList.add('removed');
+  }
 }
 
-function getCustomLevel() {
-  stopContinuousPlay();
-
-  var grid = currentGame.frames[currentGame.currentFrame];
-
+var exportGridToJsonString = function (grid) {
   var str = "[";
   for (var i = 0; i < grid.length; i++) {
     str += "["
@@ -398,8 +412,18 @@ function getCustomLevel() {
     }
 
   }
-  str += "]"
-  $('customLevelInput').value = str;
+  str += "]";
+  return str;
+}
+
+function getCustomLevel() {
+  stopContinuousPlay();
+
+  var grid = currentGame.frames[currentGame.currentFrame];
+
+  var string = exportGridToJsonString(grid);
+
+  $('customLevelInput').value = string;
 }
 
 function setCustomLevel() {
@@ -411,8 +435,8 @@ function setCustomLevel() {
   initGame(gridObj);
 }
 
-function makeCurrentGridRandom(){
-  initGame(generateRandomGrid(xSize,ySize));
+function makeCurrentGridRandom(nonVisual){
+  initGame(generateRandomGrid(xSize,ySize), nonVisual);
 }
 
 function generateRandomGrid(x,y){
@@ -439,5 +463,49 @@ var changeBoardDimensions = function () {
   }
 }
 
+// init on page load
 makeCurrentGridRandom();
-//
+
+var bulkRunner = function (quota, arr, stats) {
+  if (quota === undefined) {        // init
+    quota = Number($('bulk-input').value);
+    arr = [];
+    stats = {
+      startTime: new Date(),
+      totalLoopLength: 0,
+      totalTicksTilLoop: 0,
+      totalFinalVortexCount: 0,
+    };
+    $('bulk-heading').innerHTML = "<br><br>PROCESSING "+quota+" RANDOM GRIDS<br>";
+    $('bulk-heading').classList.remove('removed');
+    $('bulk-status').innerHTML = "** running game #1 **"
+    $('bulk-status').classList.remove('removed');
+    $('not-bulk').classList.add('removed');
+  }
+  if (quota === 0) {               // done
+    var now = new Date();
+    var secs = (Math.floor(now - stats.startTime))/1000;
+    var secs = arr.length + " games were run in " +secs+" seconds";
+    //
+    var avgs = "mean ticks til loop: "+((Math.round((stats.totalTicksTilLoop/arr.length)*100))/100)+"<br>"
+    avgs += "mean loop length: "+((Math.round((stats.totalLoopLength/arr.length)*100))/100)+"<br>"
+    avgs += "mean final vortex count: "+((Math.round((stats.totalFinalVortexCount/arr.length)*100))/100)+"<br>"
+    //
+    $('bulk-status').innerHTML = "**DING**<br>"+secs+"<br>"+avgs+"open your console for more";
+    console.log(arr);
+    $('bulk-heading').classList.add('removed');
+    $('not-bulk').classList.remove('removed');
+  } else {                         // keep going
+    makeCurrentGridRandom(true);
+    continuousPlay(0, function (results) {
+      arr.push(results);
+      stats.totalTicksTilLoop += results.tilLoop;
+      stats.totalLoopLength += results.loopLength;
+      stats.totalFinalVortexCount += results.finalVortexCount;
+      var now = new Date();
+      var secs = (Math.floor(((now - stats.startTime)/arr.length)))/1000;
+      $('bulk-status').innerHTML = "** running game #"+(arr.length+1)+" **<br>currently averaging "+secs+" seconds to run each game";
+      return bulkRunner(quota-1, arr, stats);
+    });
+  }
+}
