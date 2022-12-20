@@ -1,10 +1,5 @@
 "use strict";
 
-var $ = function (x) {return document.getElementById(x);}
-var canvas = $('gameZone');
-var ctx = canvas.getContext('2d');
-var ctxOverlay = $('overlay').getContext('2d');
-
 var colours = ["#D81B60","#FFC107","#1E88E5"];
 var xSize = 50;
 var ySize = 50;
@@ -13,8 +8,11 @@ var displayVortLocs = false;
 var displayVorts = true;
 var paintDown = false;
 var brushColor = false;
-var brushSize = 1;
+var brushSize;
+var clipboard = false;
 
+
+var $ = function (x) {return document.getElementById(x);}
 
 var getCoords = function (e) {  // from mouse position over canvas
   var rect = e.target.getBoundingClientRect();
@@ -22,85 +20,161 @@ var getCoords = function (e) {  // from mouse position over canvas
   var yCoord = Math.floor((e.clientY - rect.top) / (rect.height / ySize));
   return {x:xCoord, y:yCoord};
 }
-var getArea = function (coords, width) { // width must be odd integer, does NOT wrap
+var getArea = function (centerCoords, width, height, wrap) {
   var arr = [];
-  var radius = (width-1)/2;
   for (var i = 0; i < width; i++) {
-    var x = (coords.x - radius) + i;
+    var x = (centerCoords.x - Math.floor((width-1)/2)) + i;
+    if (wrap) {x = (x+xSize) % xSize}
     if (x >= 0 && x < xSize) {
-      for (var j = 0; j < width; j++) {
-        var y = (coords.y - radius) + j;
+      for (var j = 0; j < height; j++) {
+        var y = (centerCoords.y - Math.floor((height-1)/2)) + j;
+        if (wrap) {y = (y+ySize) % ySize}
         if (y >= 0 && y < ySize) {
           arr.push([x,y]);
         }
       }
     }
   }
-  //
   return arr;
 }
 
 var startPaint = function (e) {
   if (brushColor === false) {return;}
+  //
   var coords = getCoords(e);
-  paintDown = getCoords(e);
-  applyPaint(getArea(coords, brushSize));
+  var area = getArea(coords, brushSize[0], brushSize[1], $('brush-wrap-checkbox').checked);
+  if (brushColor === "copy") {
+    //
+    var i = 0;
+    clipboard = [];
+    while (area[i]) {
+      clipboard.push([]);
+      var curX = area[i][0];
+      while (area[i] && curX === area[i][0]) {
+        var spotColor = currentGame.frames[currentGame.currentFrame][area[i][0]][area[i][1]];
+        clipboard[clipboard.length-1].push(spotColor);
+        i++;
+      }
+    }
+    refreshClipboardDisplay();
+    //
+  } else if (brushColor === "paste") {
+    //
+    applyPaint(area, false);
+    //
+  } else {
+    paintDown = coords;
+    applyPaint(area, brushColor);
+  }
 }
-var mouseMove = function (e) {
+var mouseMove = function (e, cnvsElm) {
+  var ctx = cnvsElm.getContext('2d');
   if (paintDown) {
-    ctxOverlay.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, cnvsElm.width, cnvsElm.height);
     var coords = getCoords(e);
     if (coords.x !== paintDown.x || coords.y !== paintDown.y) {
       paintDown = coords;
-      applyPaint(getArea(coords, brushSize));
+      applyPaint(getArea(coords, brushSize[0], brushSize[1], $('brush-wrap-checkbox').checked), brushColor);
     }
   } else if (brushColor !== false) {
-    ctxOverlay.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, cnvsElm.width, cnvsElm.height);
     //
-    var coords = getCoords(e);
-    var xUnit = canvas.width / xSize;
-    var yUnit = canvas.height / ySize;
-    var startX = xUnit * (coords.x - (brushSize-1)/2);
-    var startY = yUnit * (coords.y - (brushSize-1)/2);
-    //
-    ctxOverlay.beginPath();
-    ctxOverlay.fillStyle = 'rgb(80, 80, 80, .7)';
-    ctxOverlay.fillRect(startX, startY, xUnit*brushSize, yUnit*brushSize);
+    var hoveredUpon = getArea(getCoords(e), brushSize[0], brushSize[1], $('brush-wrap-checkbox').checked);
+
+    var xUnit = cnvsElm.width / xSize;
+    var yUnit = cnvsElm.height / ySize;
+
+    for (var i = 0; i < hoveredUpon.length; i++) {
+      ctx.beginPath();
+      ctx.fillStyle = 'rgb(80, 80, 80, .75)';
+      ctx.fillRect(xUnit*hoveredUpon[i][0],yUnit*hoveredUpon[i][1],xUnit,yUnit);
+    }
   }
 }
 var stopPaint = function () {
   paintDown = false;
 }
-var mouseLeave = function () {
-  ctxOverlay.clearRect(0, 0, canvas.width, canvas.height);
+var mouseLeave = function (elem) {
+  elem.getContext('2d').clearRect(0, 0, $('overlay-canvas').width, $('overlay-canvas').height);
 }
 
-var applyPaint = function (coordList) {
+var applyPaint = function (coordList, color) {
   var grid = currentGame.frames[currentGame.currentFrame];
-  for (var i = 0; i < coordList.length; i++) {
-    grid[coordList[i][0]][coordList[i][1]] = brushColor;
+  if (color !== false) {
+    for (var i = 0; i < coordList.length; i++) {
+      grid[coordList[i][0]][coordList[i][1]] = color;
+    }
+  } else {
+    var ref = {}
+    for (var i = 0; i < coordList.length; i++) {
+      ref[coordList[i]] = true;
+    }
+    for (var i = 0; i < clipboard.length; i++) {
+      var x = coordList[0][0]+i;
+      x = (x+xSize) % xSize;
+      for (var j = 0; j < clipboard[i].length; j++) {
+        var y = coordList[0][1]+j;
+        y = (y+ySize) % ySize;
+        if (ref[x+","+y]) {
+          grid[x][y] = clipboard[i][j];
+        }
+      }
+    }
   }
   initGame(grid);
 }
 
-var changeBrushSize = function () {
-  brushSize = $("brush-size-select").value;
+var importClipboard = function () {
+  clipboard = JSON.parse($('clipboard-input').value);
+  refreshClipboardDisplay();
+}
+var refreshClipboardDisplay = function () {
+  $('pasteBrushBtn').classList.remove('removed');
+  $('clipboard-wrapper').classList.remove('removed');
+  $('clipboard-input').value = JSON.stringify(clipboard);
+  //
+  $('clipboard-canvas').width = ($('main-canvas').getBoundingClientRect().width / xSize) * clipboard.length
+  $('clipboard-canvas').height = ($('main-canvas').getBoundingClientRect().height / ySize)* clipboard[0].length;
+  drawGrid($('clipboard-canvas'), clipboard, getVortsAndString(clipboard).vorts, true);
+}
+
+var changeBrushSize = function (dir) {
+  if (dir === "x") {
+    brushSize[0] = $('brush-size-input-x').value;
+    brushSize[1] = $('brush-size-input-y').value;
+  } else if (dir === 'y') {
+    brushSize[0] = $('brush-size-input-x').value;
+    brushSize[1] = $('brush-size-input-y').value;
+  } else {
+    brushSize = [$("brush-size-input").value, $("brush-size-input").value];
+  }
 }
 var selectPaint = function (color, btn) {
   stopContinuousPlay();
   deselectPaint();
   brushColor = color;
-  $('overlay').classList.remove('removed');
+  $('overlay-canvas').classList.remove('removed');
   btn.classList.add('selected');
+  if (color === "paste") {
+    brushSize[0] = clipboard.length;
+    brushSize[1] = clipboard[0].length;
+    $('brush-size-input').disabled = true;
+    $('brush-size-input-x').disabled = true;
+    $('brush-size-input-y').disabled = true;
+  }
 }
 var deselectPaint = function () {
   brushColor = false;
-  $('overlay').classList.add('removed');
-  ctxOverlay.clearRect(0, 0, canvas.width, canvas.height);
+  $('brush-size-input').disabled = false;
+  $('brush-size-input-x').disabled = false;
+  $('brush-size-input-y').disabled = false;
+  $('overlay-canvas').classList.add('removed');
   var buttons = $("color-container").childNodes;
   for (var i = 0; i < buttons.length; i++) {
     buttons[i].classList.remove('selected');
   }
+  $('copyBrushBtn').classList.remove('selected');
+  $('pasteBrushBtn').classList.remove('selected');
 }
 var setPaintContainer = function () {
   for (var i = 0; i < colours.length; i++) {
@@ -137,10 +211,10 @@ function getVortsAndString(grid) {
 }
 
 function isVort(grid,x,y) {
-  var neb = vortNb(x,y)
+  var neb = vortNb(x,y, grid.length,grid[0].length)
   var vort = []
-  for (var i = 0; i < 4; i++) {
-    vort.push(grid[neb[i][0]][neb[i][1]])
+  for (var i = 0; i < neb.length; i++) {
+    vort.push(grid[neb[i][0]][neb[i][1]]);
   }
   if (vort.includes(0) && vort.includes(1) && vort.includes(2)) {
     return true
@@ -148,11 +222,11 @@ function isVort(grid,x,y) {
   return false
 }
 
-function vortNb(x,y) {      // outputs the cells required for tracking vortices
-  return [ [(x-1+xSize) % xSize, (y-1+ySize) % ySize],
-           [(x+xSize) % xSize, (y-1+ySize) % ySize],
-           [(x-1+xSize) % xSize, (y+ySize) % ySize],
-           [(x+xSize) % xSize, (y+ySize) % ySize]
+function vortNb(x,y,xMax,yMax) {      // outputs the cells required for tracking vortices
+  return [ [(x-1+xMax) % xMax, (y-1+yMax) % yMax],
+           [(x+xMax) % xMax, (y-1+yMax) % yMax],
+           [(x-1+xMax) % xMax, (y+yMax) % yMax],
+           [(x+xMax) % xMax, (y+yMax) % yMax]
          ]
 }
 
@@ -214,11 +288,16 @@ function adjacentTo(x,y) {
          ]
        }
 
-function drawGrid(){
-  var xUnit = canvas.width / xSize;
-  var yUnit = canvas.height / ySize;
+var drawMainGrid = function () {
+  drawGrid($('main-canvas'), currentGame.frames[currentGame.currentFrame], currentGame.vorts[currentGame.currentFrame]);
+}
+
+function drawGrid(cnvsElm, grid, vorts, doNotDisplayEdgeVorts) {
+  var ctx = cnvsElm.getContext('2d');
+
+  var xUnit = cnvsElm.width / grid.length;
+  var yUnit = cnvsElm.height / grid[0].length;
   //
-  var grid = currentGame.frames[currentGame.currentFrame];
   for (var i = 0; i < grid.length; i++){
     for (var j = 0; j < grid[i].length; j++) {
       ctx.beginPath();
@@ -226,25 +305,36 @@ function drawGrid(){
     	ctx.fillRect(xUnit*i,yUnit*j,xUnit,yUnit);
     }
   }
-  if (displayVorts) {
-    var vorts = currentGame.vorts[currentGame.currentFrame];
+  if (displayVorts && vorts) {
+    var radius = Math.min(xUnit, yUnit)/3.5;
     for (var i = 0; i < vorts.length; i++) {
-      drawVortex(xUnit*vorts[i][0], yUnit*vorts[i][1]);
-      // draws vortices on the edges of the window
-      if (vorts[i][0] == 0 || vorts[i][0] == xSize) {
-        drawVortex(canvas.width-vorts[i][0], yUnit*vorts[i][1]);
+      if (!doNotDisplayEdgeVorts) {
+        drawVortex(ctx, xUnit*vorts[i][0], yUnit*vorts[i][1], radius);
+      } else {
+        if (vorts[i][0] !== 0 && vorts[i][1] !== 0) {
+          drawVortex(ctx, xUnit*vorts[i][0], yUnit*vorts[i][1], radius);
+        }
       }
-      if (vorts[i][1] == 0 || vorts[i][1] == ySize) {
-        drawVortex(xUnit*vorts[i][0], canvas.height-vorts[i][1]);
+      if (!doNotDisplayEdgeVorts) {
+        // draw a second(and possibly 3rd or 4th) vortex to represent vortices that fall on the wrapped edges
+        if (vorts[i][0] == 0) {
+          drawVortex(ctx, cnvsElm.width, yUnit*vorts[i][1], radius);
+        }
+        if (vorts[i][1] == 0) {
+          drawVortex(ctx, xUnit*vorts[i][0], cnvsElm.height, radius);
+        }
+        if (vorts[i][1] == 0 && vorts[i][0] == 0) {
+          drawVortex(ctx, cnvsElm.width, cnvsElm.height, radius);
+        }
       }
     }
   }
 }
 
-var drawVortex = function (x, y) {
+var drawVortex = function (ctx, x, y, radius) {
   ctx.fillStyle = "#000000"
   ctx.beginPath();
-  ctx.arc(x, y, (canvas.width / Math.max(xSize, ySize))/3, 0, 2 * Math.PI);
+  ctx.arc(x, y, radius, 0, 2 * Math.PI);
   ctx.fill();
 }
 
@@ -254,7 +344,7 @@ var refreshDisplay = function () {
   }
   $('vortNum').innerHTML = "# vortices: " + currentGame.vorts[currentGame.currentFrame].length.toString();
   $('frameCount').innerHTML = currentGame.currentFrame;
-  drawGrid();
+  drawMainGrid();
 }
 
 
@@ -286,7 +376,8 @@ function toggleDisplayVortLocs() {
 function toggleDisplayVorts() {
   displayVorts = !displayVorts;
 
-  drawGrid();
+  drawMainGrid();
+  drawGrid($('clipboard-canvas'), clipboard, true);
 
   if (displayVorts) {
     displayVortsButton.innerHTML = "hide vorts"
@@ -366,7 +457,7 @@ var goToFrame = function () {
   stopContinuousPlay();
   var frame = Number($('frame-input').value);
   if (!Number.isInteger(frame) || frame < 0 || frame > currentGame.frames.length) {
-    alert("no!")
+    alert("no!");
   } else {
     currentGame.currentFrame = frame;
     //
@@ -465,6 +556,7 @@ var changeBoardDimensions = function () {
 
 // init on page load
 makeCurrentGridRandom();
+changeBrushSize();
 
 var bulkRunner = function (quota, arr, stats) {
   if (quota === undefined) {        // init

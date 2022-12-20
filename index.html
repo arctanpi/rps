@@ -2,6 +2,7 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<link rel="icon" type="image/png" href="icon.png">
 <style media="screen">
 	body {background: gainsboro;}
 	.color-button {
@@ -19,7 +20,7 @@
 		position: relative;
 		height: 70.5vmin;
 	}
-	canvas {
+	.game-canvas {
 		width: 70vmin;
 		position: absolute;
 		left: 50%;
@@ -32,12 +33,12 @@
 
 	<p id="bulk-heading" class="removed"></p>
 	<p id="bulk-status" class="removed"></p>
-	
+
 	<wrapper id="not-bulk">
 
 	<div id="gameWindow">
-		<canvas id="gameZone" width="500" height="500" style="border:1px solid #000000;"></canvas>
-		<canvas id="overlay" class="removed" width="500" height="500" onmousedown="startPaint(event)" onmousemove="mouseMove(event)" onmouseleave="mouseLeave()" style="border:1px solid #000000;"></canvas>
+		<canvas id="main-canvas" class="game-canvas" width="500" height="500" style="border:1px solid #000000;"></canvas>
+		<canvas id="overlay-canvas" class="game-canvas removed" width="500" height="500" onmousedown="startPaint(event)" onmousemove="mouseMove(event, this)" onmouseleave="mouseLeave(this)" style="border:1px solid #000000; cursor: none;"></canvas>
 	</div>
 
 	<text id="frameCount"></text>
@@ -63,15 +64,26 @@
 
 	<div id="paint-options">
 		<box id="color-container"></box>
-		<label for = "brush-size-select" style="vertical-align: sub;">brush size:</label>
-		<select id="brush-size-select" onchange="changeBrushSize()" style="vertical-align: sub;">
-			<option>1</option>
-			<option>3</option>
-			<option>5</option>
-			<option>9</option>
-			<option>15</option>
-			<option>23</option>
-		</select>
+		<label for = "brush-size-input" style="vertical-align: sub;">brush size:</label>
+		<input value=3 type="number" id="brush-size-input" onchange="changeBrushSize()" min=1 style="width:34px; vertical-align: sub;">
+		<button id="copyBrushBtn" onclick="selectPaint('copy', this)" style="vertical-align: sub;">copy brush</button>
+		<button id="pasteBrushBtn" onclick="selectPaint('paste', this)" class="removed" style="vertical-align: sub;">paste brush</button>
+		<br>
+		<label for="brush-wrap-checkbox" style="vertical-align: sub;">brush wrap</label>
+		<input type="checkbox" id="brush-wrap-checkbox" checked=true style="vertical-align: sub;">
+		<label for = "brush-size-input-x" style="vertical-align: sub;">brush x:</label>
+		<input value=3 type="number" id="brush-size-input-x" onchange="changeBrushSize('x')" min=1 style="width:34px; vertical-align: sub;">
+		<label for = "brush-size-input-y" style="vertical-align: sub;">brush y:</label>
+		<input value=3 type="number" id="brush-size-input-y" onchange="changeBrushSize('y')" min=1 style="width:34px; vertical-align: sub;">
+		<br>
+		<wrapper id="clipboard-wrapper" class="removed">
+			<label for="clipboard-canvas" style="vertical-align: top;">clipboard:</label>
+			<canvas id="clipboard-canvas" style="border:1px solid #000000;"></canvas>
+		</wrapper>
+		<br>
+		<input type="text" id="clipboard-input">
+		<!-- <button id="clipboard-export" class="removed" onclick="exportClipboard()">export clipboard to string</button> -->
+		<button onclick="importClipboard()">load clipboard from string</button>
 	</div>
 
 	<br>
@@ -81,7 +93,7 @@
 	<br>
 	<br>
 
-	<label for = "customLevelInput">input custom grid: </label>
+	<label for = "customLevelInput">input grid: </label>
 	<input type = "text" id = "customLevelInput">
 	<button id = "getCustomLevel", onclick = "getCustomLevel()"> get </button>
 	<button id = "setCustomLevel", onclick = "setCustomLevel()"> set </button>
@@ -109,7 +121,7 @@
 	<br>
 
 	<label for="">get stats for</label>
-	<input type="number" id="bulk-input" style="width:50px" value=10>
+	<input type="number" id="bulk-input" style="width:50px" value=10 step=10>
 	<label>random grids with current settings</label>
 	<button onclick="bulkRunner()">run</button>
 	</wrapper>
