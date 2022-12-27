@@ -437,19 +437,27 @@ function forwardOneStep(nonVisual){
 
 // this makes the world go rounder keep going
 var continuousPlay = function (delay, nonVisual) {    // delay in mS between frame updates
-  // unschedule the next scheduled step, in case we are here via button press and not on schedule
-  clearTimeout(currentGame.timer);
-  // schedule the next step
-  currentGame.timer = setTimeout(function () {
-    continuousPlay(delay, nonVisual);
-  }, delay);
-  // actually take a step
-  forwardOneStep(nonVisual);
-  // taking a step has to come after scheduling the following step so that the step can cancel the next one if need be
+  if (nonVisual) {
+    if (currentGame.timer) {
+      forwardOneStep(nonVisual);
+      continuousPlay(delay, nonVisual);
+    }
+  } else {
+    // unschedule the next scheduled step, in case we are here via button press and not on schedule
+    clearTimeout(currentGame.timer);
+    // schedule the next step
+    currentGame.timer = setTimeout(function () {
+      continuousPlay(delay);
+    }, delay);
+    // actually take a step
+    forwardOneStep();
+    // taking a step has to come after scheduling the following step so that the step can cancel the next one if need be
+  }
 }
 
 var stopContinuousPlay = function () {
   clearTimeout(currentGame.timer);
+  currentGame.timer = false;
 }
 
 
@@ -558,7 +566,7 @@ var changeBoardDimensions = function () {
 makeCurrentGridRandom();
 changeBrushSize();
 
-var bulkRunner = function (quota, arr, stats) {
+var bulkRunner = function (quota, arr, stats, timeOfLastBreath) {
   if (quota === undefined) {        // init
     quota = Number($('bulk-input').value);
     arr = [];
@@ -568,12 +576,14 @@ var bulkRunner = function (quota, arr, stats) {
       totalTicksTilLoop: 0,
       totalFinalVortexCount: 0,
     };
-    $('bulk-heading').innerHTML = "<br><br>PROCESSING "+quota+" RANDOM GRIDS<br>";
+    timeOfLastBreath = new Date();
+    $('bulk-heading').innerHTML = "<br><br>PROCESSING "+quota+" RANDOM "+xSize+"x"+ySize+" GRIDS<br>";
     $('bulk-heading').classList.remove('removed');
     $('bulk-status').innerHTML = "** running game #1 **"
     $('bulk-status').classList.remove('removed');
     $('not-bulk').classList.add('removed');
   }
+
   if (quota === 0) {               // done
     var now = new Date();
     var secs = (Math.floor(now - stats.startTime))/1000;
@@ -587,17 +597,35 @@ var bulkRunner = function (quota, arr, stats) {
     console.log(arr);
     $('bulk-heading').classList.add('removed');
     $('not-bulk').classList.remove('removed');
-  } else {                         // keep going
-    makeCurrentGridRandom(true);
-    continuousPlay(0, function (results) {
-      arr.push(results);
-      stats.totalTicksTilLoop += results.tilLoop;
-      stats.totalLoopLength += results.loopLength;
-      stats.totalFinalVortexCount += results.finalVortexCount;
-      var now = new Date();
-      var secs = (Math.floor(((now - stats.startTime)/arr.length)))/1000;
-      $('bulk-status').innerHTML = "** running game #"+(arr.length+1)+" **<br>currently averaging "+secs+" seconds to run each game";
-      return bulkRunner(quota-1, arr, stats);
-    });
+    if (document.hidden) {
+      alert("dinner's ready!");
+    }
+  } else {                      // keep going
+    var now = new Date();
+    var timeSinceLastBreath = now - timeOfLastBreath;
+    if (timeSinceLastBreath > 200) {
+      setTimeout(function () {
+        runner(quota, arr, stats, now);
+      }, 0);
+      // the "delay 0 time hack" allows the DOM to update so you can see progress
+      // and allows the CPU to catch up thus preventing stack overflows
+      // but does slow the code down a bit, especially when the tab is in the background, because browser throttling
+    } else {
+      runner(quota, arr, stats, timeOfLastBreath);
+    }
   }
+}
+var runner = function (quota, arr, stats, timeOfLastBreath) {
+  makeCurrentGridRandom(true);
+  currentGame.timer = true;
+  continuousPlay(0, function (results) {
+    arr.push(results);
+    stats.totalTicksTilLoop += results.tilLoop;
+    stats.totalLoopLength += results.loopLength;
+    stats.totalFinalVortexCount += results.finalVortexCount;
+    var now = new Date();
+    var secs = (Math.floor(((now - stats.startTime)/arr.length)))/1000;
+    $('bulk-status').innerHTML = "** running game #"+(arr.length+1)+" **<br>currently averaging "+secs+" seconds to run each game";
+    bulkRunner(quota-1, arr, stats, timeOfLastBreath);
+  });
 }
