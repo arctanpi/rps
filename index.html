@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html>
 <head>
+	<meta charset="utf-8">
+	<title>rochambeau</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <link rel="icon" type="image/png" href="icon.PNG">
 <style media="screen">
@@ -97,14 +99,18 @@
 	<input type = "text" id = "customLevelInput">
 	<button id = "getCustomLevel", onclick = "getCustomLevel()"> get </button>
 	<button id = "setCustomLevel", onclick = "setCustomLevel()"> set </button>
+	<br>
+	<label for = "grid-link">grid link: </label>
+	<input type = "text" id = "grid-link">
+	<button onclick="getGridLink()">get</button>
 
 	<br>
 	<br>
 
 	<label for="x-input">board width</label>
-	<input type="number" id="x-input" style="width:36px" value="50">
+	<input type="number" id="x-input" style="width:36px">
 	<label for="y-input">board height</label>
-	<input type="number" id="y-input" style="width:36px" value="50">
+	<input type="number" id="y-input" style="width:36px">
 	<button onclick="changeBoardDimensions()">set board dimensions</button>
 
 	<p id = "loopFound" class="removed"> no loop yet you sneaky html viewer </p>
