@@ -761,10 +761,14 @@ var loadFromAddressBarOnPageLoad = function () {
 
       var grid = [];
       for (var i = 0; i < xSize; i++) {
-        grid.push(base3GridString.substr(i*yDim, yDim).split(''));
+        var arr = base3GridString.substr(i*yDim, yDim).split('');
+        for (var j = 0; j < arr.length; j++) {
+          arr[j] = Number(arr[j]);
+        }
+        grid.push(arr);
       }
 
-      setCustomLevel(grid)
+      setCustomLevel(grid);
       return;
     }
   }
