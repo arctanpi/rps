@@ -149,6 +149,7 @@ var changeBrushSize = function (dir) {
     brushSize = [$("brush-size-input").value, $("brush-size-input").value];
   }
 }
+changeBrushSize();
 var selectPaint = function (color, btn) {
   stopContinuousPlay();
   deselectPaint();
@@ -437,19 +438,27 @@ function forwardOneStep(nonVisual){
 
 // this makes the world go rounder keep going
 var continuousPlay = function (delay, nonVisual) {    // delay in mS between frame updates
-  // unschedule the next scheduled step, in case we are here via button press and not on schedule
-  clearTimeout(currentGame.timer);
-  // schedule the next step
-  currentGame.timer = setTimeout(function () {
-    continuousPlay(delay, nonVisual);
-  }, delay);
-  // actually take a step
-  forwardOneStep(nonVisual);
-  // taking a step has to come after scheduling the following step so that the step can cancel the next one if need be
+  if (nonVisual) {
+    if (currentGame.timer) {
+      forwardOneStep(nonVisual);
+      continuousPlay(delay, nonVisual);
+    }
+  } else {
+    // unschedule the next scheduled step, in case we are here via button press and not on schedule
+    clearTimeout(currentGame.timer);
+    // schedule the next step
+    currentGame.timer = setTimeout(function () {
+      continuousPlay(delay);
+    }, delay);
+    // actually take a step
+    forwardOneStep();
+    // taking a step has to come after scheduling the following step so that the step can cancel the next one if need be
+  }
 }
 
 var stopContinuousPlay = function () {
   clearTimeout(currentGame.timer);
+  currentGame.timer = false;
 }
 
 
@@ -511,14 +520,32 @@ function getCustomLevel() {
   stopContinuousPlay();
 
   var grid = currentGame.frames[currentGame.currentFrame];
-
-  var string = exportGridToJsonString(grid);
-
-  $('customLevelInput').value = string;
+  var jsonString = exportGridToJsonString(grid);
+  $('customLevelInput').value = jsonString;
+  selectFullInputContents($('customLevelInput'));
 }
 
-function setCustomLevel() {
-  var gridObj = JSON.parse($('customLevelInput').value);
+var getGridLink = function () {
+  stopContinuousPlay();
+  var grid = currentGame.frames[currentGame.currentFrame];
+  var lowBaseString = grid.flat().join('');
+  var highBaseString = compressString(lowBaseString, 3);
+
+  var url = window.location.href;
+  url = url.slice(0, url.indexOf('#'))
+  $('grid-link').value = url + "#" + xSize + "x" + ySize + "." + highBaseString;
+  selectFullInputContents($('grid-link'));
+}
+
+var selectFullInputContents = function (elem) {
+  elem.focus();
+  elem.setSelectionRange(0, -1);
+}
+
+function setCustomLevel(input) {  // input is an array(of arrays) of griddata, defaults to GUI input field if not given
+  if (!input) { input = JSON.parse($('customLevelInput').value) }
+
+  var gridObj = input;
   xSize = gridObj.length;
   ySize = gridObj[0].length;
   $('x-input').value = xSize;
@@ -545,7 +572,7 @@ function generateRandomGrid(x,y){
 var changeBoardDimensions = function () {
   var xDim = Number($('x-input').value);
   var yDim = Number($('y-input').value);
-  if (!Number.isInteger(xDim) || xDim < 3 || !Number.isInteger(yDim) || yDim < 3) {
+  if (!Number.isInteger(xDim) || xDim < 1 || !Number.isInteger(yDim) || yDim < 1) {
     alert("no!")
   } else {
     xSize = xDim;
@@ -554,11 +581,8 @@ var changeBoardDimensions = function () {
   }
 }
 
-// init on page load
-makeCurrentGridRandom();
-changeBrushSize();
 
-var bulkRunner = function (quota, arr, stats) {
+var bulkRunner = function (quota, arr, stats, timeOfLastBreath) {
   if (quota === undefined) {        // init
     quota = Number($('bulk-input').value);
     arr = [];
@@ -568,12 +592,15 @@ var bulkRunner = function (quota, arr, stats) {
       totalTicksTilLoop: 0,
       totalFinalVortexCount: 0,
     };
-    $('bulk-heading').innerHTML = "<br><br>PROCESSING "+quota+" RANDOM GRIDS<br>";
+    timeOfLastBreath = new Date();
+    timeOfLastBreath -= 201;  // to force a breath on the first go through
+    $('bulk-heading').innerHTML = "<br><br>PROCESSING "+quota+" RANDOM "+xSize+"x"+ySize+" GRIDS<br>";
     $('bulk-heading').classList.remove('removed');
     $('bulk-status').innerHTML = "** running game #1 **"
     $('bulk-status').classList.remove('removed');
     $('not-bulk').classList.add('removed');
   }
+
   if (quota === 0) {               // done
     var now = new Date();
     var secs = (Math.floor(now - stats.startTime))/1000;
@@ -587,17 +614,168 @@ var bulkRunner = function (quota, arr, stats) {
     console.log(arr);
     $('bulk-heading').classList.add('removed');
     $('not-bulk').classList.remove('removed');
-  } else {                         // keep going
-    makeCurrentGridRandom(true);
-    continuousPlay(0, function (results) {
-      arr.push(results);
-      stats.totalTicksTilLoop += results.tilLoop;
-      stats.totalLoopLength += results.loopLength;
-      stats.totalFinalVortexCount += results.finalVortexCount;
-      var now = new Date();
-      var secs = (Math.floor(((now - stats.startTime)/arr.length)))/1000;
-      $('bulk-status').innerHTML = "** running game #"+(arr.length+1)+" **<br>currently averaging "+secs+" seconds to run each game";
-      return bulkRunner(quota-1, arr, stats);
-    });
+    if (document.hidden) {
+      alert("dinner's ready!");
+    }
+  } else {                      // keep going
+    var now = new Date();
+    var timeSinceLastBreath = now - timeOfLastBreath;
+    if (timeSinceLastBreath > 200) {
+      setTimeout(function () {
+        runner(quota, arr, stats, now);
+      }, 0);
+      // the "delay 0 time hack" allows the DOM to update so you can see progress
+      // and allows the CPU to catch up thus preventing stack overflows
+      // but does slow the code down a bit, especially when the tab is in the background, because browser throttling
+    } else {
+      runner(quota, arr, stats, timeOfLastBreath);
+    }
   }
 }
+var runner = function (quota, arr, stats, timeOfLastBreath) {
+  makeCurrentGridRandom(true);
+  currentGame.timer = true;
+  continuousPlay(0, function (results) {
+    arr.push(results);
+    stats.totalTicksTilLoop += results.tilLoop;
+    stats.totalLoopLength += results.loopLength;
+    stats.totalFinalVortexCount += results.finalVortexCount;
+    var now = new Date();
+    var secs = (Math.floor(((now - stats.startTime)/arr.length)))/1000;
+    $('bulk-status').innerHTML = "** running game #"+(arr.length+1)+" **<br>currently averaging "+secs+" seconds to run each game";
+    bulkRunner(quota-1, arr, stats, timeOfLastBreath);
+  });
+}
+
+var baseRef = {
+  valuableString: `ԆɕηıŠҭˀřʷԑőʡɋɌϭιŃș˱ǭʴϥέуеһɢжǲǰȲʝΔхǯϸþȈɶϰӖҗǿȣø§ΎʉŐʺҔѵӋͶӚƴĻӶïǕˬ÷ϛɊûρѣƸÚȸήкΩԅȫĚѸΧӯɰҞϡ˳өΙʸðɯʹǏԥЈŰκĉĶËӷԌο˅ʒϣԃҚħɆƒʠȥ˪ұѻϚͺťвėůґķʯɝЮ¢ϘЯ˨ǸјǈȴˇӸœǫЉĥѧ³ƌԧɠКåƕǉąžĮТˉȎаЬΜǛΊǔǄȀϿχ¡ǩ˾Ѿĩϊ΄ϵІāϢӧϯӳˎōΟɃűĄĔƙʻĖіˮƫÛǖȻǊȊԈɚБӏļβǥŻŽУЀÂПԉǽѼȚφѽłĜͲ£ѫǙɲ˻Ъ;ƖäÄěΤŭƟțҏНΝЄŪɫ®ŅѴɭʊƽǻЗǾīΪɬŸϐȋӠωЂɿ˧˺ǺʂʗȍɛÿˆϪƊÎÈʼɗĢÔñ˴ǓưÒѭҲƗçʇЩʽϱԇʥ˷ԘѕƾәɘҁΈԤʑȘĭμϠȼҡÉζҸӭʟȜŜȠϺЍѦҰîӄľСµЋƛƿƚØϽàόŌϻҴǪĵȳ¯ëȃŞʮчÏɄƓũÙɍŧцŨɅʜɥʐ²úǷĴƢԒˠΦћΆɇȄʛȟǁʲ»ϾʁǤȺƀӅʬΚӁɈǍǡēϜӕƜ¸ɁэˣʆƠӨƪҝęʌȔɳЎ˂ɺȦˢГʹƨ¦Ӏ˯ҩʔəЛӒӫɸɨʱҪǨǎǮˍҋ¾ƺŔӐљӽд˔°ǐΠĿʚѶ˝±ԢĈâŖĪĳĲʦӬˡȇҌɖƈǋѹЃ«˜ʄФЊεϏЅčɩƯъϗϟνǴÃĀɎɴƐΘʋϔĘқɔƻԦŴʃĐҒȭπáȧƧɧɣƅ×ѰƝӪϦѡèˈʅƘԎӘσЫ˘Ɓʕн¼ԞŋҘӉϞ˚˰ŘϙҦӟпюɒΓҎʰϼÆÑŗҊÌΗ˗ҹ˭М©лǚŊӺɀϴɐȗȝƞăǳɹȑŦмįȹЏ˶ƵŕѮƳʫѝИ˽ԁςşѯϒȢ˓ːȱÕƼȾãӦΉшӇĨďʙͿ¨íВԏӴ¤˫ƭͻĆαýȩŶңɏΑɵɽƹўԀӻʪđĒҷʏЦöɑʵʳԜʍϩԓӎА˵ѤѠõѩˊЁ˦ǱΣԨʖ϶ΒƦȓĦŤʤӵӔѺ˕υͽӰҀӣƣΰиҖ˃ĬȉɓˑРҺӌÀȪ¥Дќ˖Ďԗ˙Ýȡ¿żԂǂԙϋƥ˥бΡύүƉŀϫҕӿӑΌѐġϓрȕгƔίҐņǇΕɟХǒԡӍƇϳźϕʓ¹ȮȷĕĺяҧȖſƆūԍњԛϤйƲˏˤͳğùÐŲҤҳɦÊÇƎώǣȤЖƱΖθĊЌƩΨÖ˩ӼéóзͷЕЙǟӹҬƏŏӝţғсÜć˛ǶӊɻńʎӤêÞϝČƬÓʭϧҶђӓŎӂоªҼЧȯΞγɱɼǠӥƍ˹ҮʣƄȰщͼʘ˸ǜʀǬҫҿԖӮƂʨƑȒȵŇßϲȐԣ·ѨǆÁȅӛňȁҽӈҟԝӢԄѱάƶѳǵΐ΅ĽϹɜċƋԔ˲ԊŮҠŵϮьΏƷɞģºʾ¬ОĞӞŷψȌӃѢǗԐʶ˼фŬѷǧȆЭ·ǀɮɾԠʢӜǅʧτϖǢȨȏϷџыšȂơȽɤ҉Ġҥϑĸŝʩ͵ѪÍĤʈƮͱȬԟλŉòƤЇǌӆɷǘϬĹæтҙˁǑӗĂҵśŚǃÅ½˿ȶǹξʞѲӾ˄Ң¶ǞδİǦӱӲҍѬѓɉǝ˒ҾɪҜΥŒҨɡŢΛȞƃôѿϨёȿԚŹӡìʿԕŁĝüԋєΫǼųѥɂї`,
+}
+
+var compressString = function (string, curBase) {
+  var x = getBigBaseAndRatio(curBase);
+  var newBase = x[0];
+  var ratio = x[1];
+
+  var newString = '';
+  while (string !== '') {
+    // grab the next X characters of the string of small base
+    var snip = string.substr(0, ratio);
+    while (snip.length !== ratio) {
+      snip += "0";
+    }
+    // trim the string
+    string = string.substr(ratio);
+
+    var dec = convertToDecimal(snip, curBase);
+    // convert to bigBase
+    var char = baseRef.valuableString[dec];
+
+    newString += char;
+  }
+  return newString;
+}
+var convertToDecimal = function (string, curBase) {
+  var arr = string.split('');
+  var number = 0;
+  for (var i = 0; i < arr.length; i++) {
+    number += (Math.pow(curBase, i) * Number(arr[(arr.length -1)-i]));
+  }
+  return number;
+}
+var deCompressString = function (string, targetBase) {
+  var x = getBigBaseAndRatio(targetBase);
+  var oldBase = x[0];
+  var ratio = x[1];
+  createBaseRef(oldBase);
+
+  var newString = '';
+
+  while (string !== '') {
+    // look up the value of the current leading char
+    var dec = baseRef[oldBase][string[0]];
+
+    var bit = convertFromDecimal(dec, targetBase);
+    while (bit.length < ratio) {
+      bit = "0"+bit;
+    }
+    newString += bit;
+
+    // trim the string
+    string = string.substr(1);
+  }
+  return newString;
+}
+var convertFromDecimal = function (number, targetBase) {
+  var string = '';
+  while (number >= targetBase) {
+    string = String(number % targetBase)+string;
+    number = Math.floor(number/targetBase);
+  }
+  string = (number % targetBase)+string;
+
+  return string;
+}
+var getBigBaseAndRatio = function (smallBase) {
+  var multiple = smallBase;
+  var iterations = 1;
+  while (multiple*smallBase < 1024) {
+    multiple = smallBase*multiple;
+    iterations++;
+  }
+  return [multiple, iterations];
+}
+var createBaseRef = function (base) {
+  if (!baseRef[base]) {
+    baseRef[base] = {};
+
+    for (var i = 0; i < base; i++) {
+      baseRef[base][baseRef.valuableString[i]] = i;
+    }
+  }
+}
+
+var loadFromAddressBarOnPageLoad = function () {
+  var url = decodeURI(window.location.hash).substr(1);
+
+  var xLoc = url.indexOf("x");
+  if (xLoc !== -1) {
+    var xDim = Number(url.substr(0, xLoc));
+    url = url.substr(xLoc+1)
+
+    var dotLoc = url.indexOf(".");
+    if (dotLoc !== -1) {
+      var yDim = Number(url.substr(0, dotLoc));
+      var gridString = url.substr(dotLoc+1);
+
+    } else {
+      var yDim = Number(url);
+
+    }
+    if (Number.isInteger(xDim) && Number.isInteger(yDim) && xDim > 0 && yDim > 0) {
+      xSize = xDim;
+      ySize = yDim;
+    }
+    if (gridString) {
+      // assume base 3(and 729) for now, later put options for other versions of automata
+      var base3GridString = deCompressString(gridString, 3);
+
+      var grid = [];
+      for (var i = 0; i < xSize; i++) {
+        var arr = base3GridString.substr(i*yDim, yDim).split('');
+        for (var j = 0; j < arr.length; j++) {
+          arr[j] = Number(arr[j]);
+        }
+        grid.push(arr);
+      }
+
+      setCustomLevel(grid);
+      return;
+    }
+  }
+  $('x-input').value = xSize;
+  $('y-input').value = ySize;
+  makeCurrentGridRandom();
+}
+
+// init on page load
+loadFromAddressBarOnPageLoad();
