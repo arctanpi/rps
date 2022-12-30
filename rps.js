@@ -1,8 +1,18 @@
 "use strict";
 
-var colours = ["#D81B60","#FFC107","#1E88E5"];
+var colours = {
+  2: ["#0036EA", "#FF00D8"],
+  3: ["#D81B60","#FFC107","#1E88E5"],
+  4: ["#B200FF","#FF006E","#FFD800","#0026FF"],
+  5: ["#FFFA84","#A584FF","#84D4FF","#FF84DC","#84FF8E"],
+  6: ['#FF1717', '#FE9D2A', '#FCE21C', '#188630', '#201EEB', '#A70DFB'],
+  7: ['#FFCCCC', '#FFEACC', '#FFFECC', '#C7F5C4', '#C4F0F4', '#C9C4F4', '#F6C6E6'],
+}
 var xSize = 50;
 var ySize = 50;
+var colors = 3;
+var flipThreshold = 3;  // inclusive
+var flipLimit = 8;      // inclusive
 var currentGame = {};
 var displayVortLocs = false;
 var displayVorts = true;
@@ -178,10 +188,10 @@ var deselectPaint = function () {
   $('pasteBrushBtn').classList.remove('selected');
 }
 var setPaintContainer = function () {
-  for (var i = 0; i < colours.length; i++) {
+  for (var i = 0; i < colours[colors].length; i++) {
     var colorButton = document.createElement("button");
     colorButton.setAttribute('class', 'color-button');
-    colorButton.style.background = colours[i];
+    colorButton.style.background = colours[colors][i];
     (function (index, btn) {
       colorButton.onclick = function () {
         selectPaint(index, btn);
@@ -193,7 +203,6 @@ var setPaintContainer = function () {
     $("color-container").appendChild(colorButton);
   }
 }
-setPaintContainer();
 
 function getVortsAndString(grid) {
   // returns both crunched grid data down to a string like 0120210, and an array of vortices
@@ -246,25 +255,23 @@ function nextGrid(grid){
 }
 
 function updateCell(grid,i,j){
-  // given the grid and the coords given by i and j, updates each
-  // cell according to the rule
-  // a 0 becomes a 1 if it has 3 or more 1 neighbours
-  // a 1 becomes a 2 if it has 3 or more 2 neighbours
-  // a 2 becomes a 0 if it has 3 or more 0 neighbours
+  // updates cells according to the rule:
+  // let n be the color state of a cell
+  // let x be the number of neighbours of color n+1 a cell has
+  // a cell of n flips to n+1 iff 'flipThreshold' >= x >= flipLimit
+
   var adj = adjacentTo(i,j);
   var val = grid[i][j];
-  // not sure if I really need to do the +4 thing here but w/e
-  var val_enemy = (val+4) % 3;
+  var val_enemy = (val+colors+1) % colors;
   var count = 0;
   for (var i = 0; i < 8; i++) {
     var ac = adj[i]
     if (grid[ac[0]][ac[1]] == val_enemy) {
-      count += 1
+      count += 1;
     }
   }
 
-  // checks if we have at least 3 neighbours of the enemy type
-  if (count > 2) {
+  if (count >= flipThreshold && count <= flipLimit) {
     var new_val = val_enemy
   } else {
     var new_val = val
@@ -302,7 +309,7 @@ function drawGrid(cnvsElm, grid, vorts, doNotDisplayEdgeVorts) {
   for (var i = 0; i < grid.length; i++){
     for (var j = 0; j < grid[i].length; j++) {
       ctx.beginPath();
-    	ctx.fillStyle = colours[grid[i][j]];
+    	ctx.fillStyle = colours[colors][grid[i][j]];
     	ctx.fillRect(xUnit*i,yUnit*j,xUnit,yUnit);
     }
   }
@@ -378,7 +385,9 @@ function toggleDisplayVorts() {
   displayVorts = !displayVorts;
 
   drawMainGrid();
-  drawGrid($('clipboard-canvas'), clipboard, true);
+  if (clipboard) {
+    drawGrid($('clipboard-canvas'), clipboard, getVortsAndString(clipboard).vorts, true);
+  }
 
   if (displayVorts) {
     displayVortsButton.innerHTML = "hide vorts"
@@ -529,11 +538,14 @@ var getGridLink = function () {
   stopContinuousPlay();
   var grid = currentGame.frames[currentGame.currentFrame];
   var lowBaseString = grid.flat().join('');
-  var highBaseString = compressString(lowBaseString, 3);
+  var highBaseString = compressString(lowBaseString, colors);
 
   var url = window.location.href;
-  url = url.slice(0, url.indexOf('#'))
-  $('grid-link').value = url + "#" + xSize + "x" + ySize + "." + highBaseString;
+  var hashLoc = url.indexOf('#');
+  if (hashLoc !== -1) {
+    url = url.slice(0, url.indexOf('#'));
+  }
+  $('grid-link').value = url + "#" + xSize + "x" + ySize + "." + colors + "." + flipThreshold + "." + flipLimit + "." + highBaseString;
   selectFullInputContents($('grid-link'));
 }
 
@@ -562,7 +574,7 @@ function generateRandomGrid(x,y){
   for (var i = 0; i < x; i++){
     var new_row = []
     for (var j = 0; j < y; j++){
-      new_row.push(Math.floor(Math.random()*3))
+      new_row.push(Math.floor(Math.random()*colors))
     }
     grid.push(new_row)
   }
@@ -745,23 +757,47 @@ var loadFromAddressBarOnPageLoad = function () {
     var dotLoc = url.indexOf(".");
     if (dotLoc !== -1) {
       var yDim = Number(url.substr(0, dotLoc));
-      var gridString = url.substr(dotLoc+1);
+      url = url.substr(dotLoc+1);
+      dotLoc = url.indexOf(".");
 
+      // colors
+      if (dotLoc !== -1) {
+        var cols = Number(url.substr(0, dotLoc));
+        url = url.substr(dotLoc+1);
+        dotLoc = url.indexOf(".");
+
+        // flipThreshold
+        if (dotLoc !== -1) {
+          var flipT = Number(url.substr(0, dotLoc));
+          url = url.substr(dotLoc+1);
+          dotLoc = url.indexOf(".");
+
+          // flipLimit
+          if (dotLoc !== -1) {
+            var flipL = Number(url.substr(0, dotLoc));
+
+            var gridString = url.substr(dotLoc+1);
+          }
+        }
+      }
     } else {
       var yDim = Number(url);
+    }
 
-    }
-    if (Number.isInteger(xDim) && Number.isInteger(yDim) && xDim > 0 && yDim > 0) {
-      xSize = xDim;
-      ySize = yDim;
-    }
+    if (Number.isInteger(xDim) && xDim > 0) {xSize = xDim;}
+    if (Number.isInteger(yDim) && yDim > 0) {ySize = yDim;}
+    if (cols && Number.isInteger(cols) && cols >= 0) {colors = cols;}
+    if (flipT && Number.isInteger(flipT) && flipT >= 0) {flipThreshold = flipT;}
+    if (flipL && Number.isInteger(flipL) && flipL >= 0) {flipLimit = flipL;}
+
+
     if (gridString) {
-      // assume base 3(and 729) for now, later put options for other versions of automata
-      var base3GridString = deCompressString(gridString, 3);
+
+      var expandedGridString = deCompressString(gridString, colors);
 
       var grid = [];
       for (var i = 0; i < xSize; i++) {
-        var arr = base3GridString.substr(i*yDim, yDim).split('');
+        var arr = expandedGridString.substr(i*yDim, yDim).split('');
         for (var j = 0; j < arr.length; j++) {
           arr[j] = Number(arr[j]);
         }
@@ -779,3 +815,4 @@ var loadFromAddressBarOnPageLoad = function () {
 
 // init on page load
 loadFromAddressBarOnPageLoad();
+setPaintContainer();
