@@ -436,6 +436,9 @@ function forwardOneStep(nonVisual){
       }
     } else {
       game.book[next.gridStr] = game.frames.length-1;
+      if (nonVisual) {
+        continuousPlay(0, nonVisual);
+      }
     }
   }
   //
@@ -448,9 +451,22 @@ function forwardOneStep(nonVisual){
 // this makes the world go rounder keep going
 var continuousPlay = function (delay, nonVisual) {    // delay in mS between frame updates
   if (nonVisual) {
-    if (currentGame.timer) {
+    if (currentGame.currentFrame > 15000) {
+      return nonVisual({
+        tilLoop: currentGame.currentFrame,
+        loopLength: -1,
+        didNotFinish: true,
+        startingGrid: exportGridToJsonString(currentGame.frames[0]),
+      });
+    } else if ((currentGame.currentFrame+1) % 1000 === 0) {
+      // take a breath every 1k frames, should prevent stack overflows on very long grids when bulk running
+      (function (nonVisual) {
+        setTimeout(function () {
+          forwardOneStep(nonVisual);
+        }, 0);
+      })(nonVisual);
+    } else {
       forwardOneStep(nonVisual);
-      continuousPlay(delay, nonVisual);
     }
   } else {
     // unschedule the next scheduled step, in case we are here via button press and not on schedule
@@ -467,7 +483,6 @@ var continuousPlay = function (delay, nonVisual) {    // delay in mS between fra
 
 var stopContinuousPlay = function () {
   clearTimeout(currentGame.timer);
-  currentGame.timer = false;
 }
 
 
@@ -603,6 +618,7 @@ var bulkRunner = function (quota, arr, stats, timeOfLastBreath) {
       totalLoopLength: 0,
       totalTicksTilLoop: 0,
       totalFinalVortexCount: 0,
+      didNotFinish: [],
     };
     timeOfLastBreath = new Date();
     timeOfLastBreath -= 201;  // to force a breath on the first go through
@@ -616,13 +632,14 @@ var bulkRunner = function (quota, arr, stats, timeOfLastBreath) {
   if (quota === 0) {               // done
     var now = new Date();
     var secs = (Math.floor(now - stats.startTime))/1000;
-    var secs = arr.length + " games were run in " +secs+" seconds";
+    var secs = arr.length + " " + xSize+"x"+ySize+" games were run in " +secs+" seconds";
     //
+    var dnf = "did not finish games: "+stats.didNotFinish;
     var avgs = "mean ticks til loop: "+((Math.round((stats.totalTicksTilLoop/arr.length)*100))/100)+"<br>"
     avgs += "mean loop length: "+((Math.round((stats.totalLoopLength/arr.length)*100))/100)+"<br>"
     avgs += "mean final vortex count: "+((Math.round((stats.totalFinalVortexCount/arr.length)*100))/100)+"<br>"
     //
-    $('bulk-status').innerHTML = "**DING**<br>"+secs+"<br>"+avgs+"open your console for more";
+    $('bulk-status').innerHTML = "**DING**<br>"+secs+"<br>"+dnf+"<br>"+avgs+"open your console for more";
     console.log(arr);
     $('bulk-heading').classList.add('removed');
     $('not-bulk').classList.remove('removed');
@@ -646,12 +663,15 @@ var bulkRunner = function (quota, arr, stats, timeOfLastBreath) {
 }
 var runner = function (quota, arr, stats, timeOfLastBreath) {
   makeCurrentGridRandom(true);
-  currentGame.timer = true;
   continuousPlay(0, function (results) {
     arr.push(results);
+    if (results.didNotFinish) {
+      stats.didNotFinish.push(arr.length-1);
+    } else {
+      stats.totalFinalVortexCount += results.finalVortexCount;
+      stats.totalLoopLength += results.loopLength;
+    }
     stats.totalTicksTilLoop += results.tilLoop;
-    stats.totalLoopLength += results.loopLength;
-    stats.totalFinalVortexCount += results.finalVortexCount;
     var now = new Date();
     var secs = (Math.floor(((now - stats.startTime)/arr.length)))/1000;
     $('bulk-status').innerHTML = "** running game #"+(arr.length+1)+" **<br>currently averaging "+secs+" seconds to run each game";
