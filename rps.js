@@ -836,3 +836,170 @@ var loadFromAddressBarOnPageLoad = function () {
 // init on page load
 loadFromAddressBarOnPageLoad();
 setPaintContainer();
+
+
+
+///// vortex graph stuff
+
+
+
+// given the colours around a vertex, the type of boundary one wishes to follow
+// and the direction one came into the vertex from, gives the direction to go in
+// to keep following the boundary.
+var followBoundary = function(nbColors, boundary, prev_dir) {
+
+  var col_to_dir = [ [0,1], [2,3], [0,2], [1,3] ]
+  var dirs = [ [0,-1], [0,1], [-1,0], [1,0] ]
+
+  i
+  for (var i = 0; i < 4; i++) {
+    var t1 = (nbColors[col_to_dir[i][0]] == boundary[0] && nbColors[col_to_dir[i][1]] == boundary[1])
+    var t2 = (nbColors[col_to_dir[i][1]] == boundary[0] && nbColors[col_to_dir[i][0]] == boundary[1])
+    if ( (t1 || t2 ) && (dirs[i][0] != -prev_dir[0] || dirs[i][1] != -prev_dir[1])) {
+      return dirs[i]
+    }
+  }
+}
+
+// checks if we're wrapping round the torus boundary between pos1 and pos2
+// this should keep lines from being drawn across the grid most of the time
+var torusHop = function(pos1,pos2,xSize,ySize) {
+
+  var hopi = false
+  if (Math.abs(pos1[0]-pos2[0]) == xSize-1 ) {
+    hopi = true;
+  }
+
+  var hopj = false
+  if (Math.abs(pos1[1]-pos2[1]) == ySize-1 ) {
+    hopj = true;
+  }
+
+  return [hopi,hopj]
+
+
+}
+
+// checks for membership in the list of vortices
+var vortListCheck = function(list,pos) {
+  var contains = false
+  var ind = -1
+  for (var i = 0; i < list.length; i++) {
+    if (list[i][0] == pos[0] && list[i][1] == pos[1]) {
+      contains = true;
+      ind = i
+      break;
+    }
+  }
+  return [contains, ind]
+}
+
+
+// prints the vortex graph to the console
+// everything is a var because it wasn't working 
+var getVortexGraph = function() {
+
+  var frame_num = $("vortGraphFrame").value
+  $('frame-input').value = frame_num
+  goToFrame()
+  var canv = $("main-canvas")
+  var ctx = canv.getContext('2d');
+
+  ctx.fillStyle = "#000000"
+  ctx.beginPath();
+
+  var bounds = [[0,1],[1,2],[2,0]]
+
+  var graph = []
+  var numVorts = currentGame.vorts[frame_num]['length']
+
+  // we iterate over the list of vortices
+  for (var k = 0; k < numVorts; k++) {
+
+    var edges = []
+    // we check where each of the vortices three edges go
+    for (var b = 0; b < 3; b++) {
+
+      var boundary = bounds[b]
+      var coord_list = [currentGame.vorts[frame_num][k]]
+      var direction = [0,0]
+
+      // the drawing stuff could probably be bifurcated into its own function
+      ctx.moveTo(coord_list[0][0]*canv.width/xSize, coord_list[0][1]*canv.height/ySize);
+
+
+      var i = 0;
+
+      // don't like using the while loop but it shouldn't cause any problems
+      // all this does is keep following the given boundary until it reaches another vortex
+      // then adds that to the graph
+      while (i != -1) {
+
+        var nebs = vortNb(coord_list[i][0],coord_list[i][1],xSize,ySize)
+        var neb_colors = []
+        for (var j = 0; j < nebs.length; j++) {
+          neb_colors.push(currentGame.frames[frame_num][nebs[j][0]][nebs[j][1]]);
+        }
+
+        var direction = followBoundary(neb_colors,boundary,direction)
+
+        coord_list.push([(coord_list[i][0]+direction[0]+xSize) % xSize, (coord_list[i][1]+direction[1]+ySize) % ySize])
+
+        var hops = torusHop(coord_list[i],coord_list[i+1],xSize,ySize)
+
+        // this bit doesn't work all the time and I don't know why
+        // it's supposed to stop ctx line drawing from happening when there's
+        // a path that wraps around the grid
+        if (hops[0] || hops[1]) {
+          ctx.stroke();
+          var new_pos = coord_list[i]
+
+          if (hops[0]) {
+            if (new_pos[0] == 0) {
+              new_pos[0] = xSize
+            } else {
+              new_pos[0] = 0
+            }
+          }
+          if (hops[1]) {
+            if (new_pos[1] == 0) {
+              new_pos[1] = ySize
+            } else {
+              new_pos[1] = 0
+            }
+          }
+          ctx.moveTo(coord_list[i][0]*canv.width/xSize, coord_list[i][1]*canv.height/ySize);
+          ctx.lineTo(new_pos[0]*canv.width/xSize, new_pos[1]*canv.height/ySize);
+        }
+
+        ctx.lineTo(coord_list[i+1][0]*canv.width/xSize, coord_list[i+1][1]*canv.height/ySize);
+
+        var vlc = vortListCheck(currentGame.vorts[frame_num],coord_list[i+1])
+
+        if (vlc[0]) {
+          break;
+        }
+        i++;
+      }
+
+      ctx.stroke();
+
+      edges.push(vlc[1])
+
+
+
+    }
+
+
+    graph.push(edges)
+
+
+  }
+
+  console.log(graph)
+}
+
+
+
+
+///
