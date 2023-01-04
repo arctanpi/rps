@@ -14,8 +14,9 @@ var colors = 3;
 var flipThreshold = 3;  // inclusive
 var flipLimit = 8;      // inclusive
 var currentGame = {};
-var displayVortLocs = false;
 var displayVorts = true;
+var displayVortLocs = false;
+var displayVortPath = false;
 var paintDown = false;
 var brushColor = false;
 var brushSize;
@@ -24,13 +25,34 @@ var clipboard = false;
 
 var $ = function (x) {return document.getElementById(x);}
 
+var displayElement = function (elem) {
+  if (typeof elem === "string") {
+    elem = $(elem)
+  }
+  if (elem && typeof elem === "object") {
+    elem.classList.remove('removed');
+  } else {
+    console.error('not an element');
+  }
+}
+var removeElement = function (elem) {
+  if (typeof elem === "string") {
+    elem = $(elem)
+  }
+  if (elem && typeof elem === "object") {
+    elem.classList.add('removed');
+  } else {
+    console.error('not an element');
+  }
+}
+
 var getCoords = function (e) {  // from mouse position over canvas
   var rect = e.target.getBoundingClientRect();
   var xCoord = Math.floor((e.clientX - rect.left) / (rect.width / xSize));
   var yCoord = Math.floor((e.clientY - rect.top) / (rect.height / ySize));
   return {x:xCoord, y:yCoord};
 }
-var getArea = function (centerCoords, width, height, wrap) {
+var getArea = function (centerCoords, width, height, wrap, excludeCenter) {
   var arr = [];
   for (var i = 0; i < width; i++) {
     var x = (centerCoords.x - Math.floor((width-1)/2)) + i;
@@ -40,7 +62,9 @@ var getArea = function (centerCoords, width, height, wrap) {
         var y = (centerCoords.y - Math.floor((height-1)/2)) + j;
         if (wrap) {y = (y+ySize) % ySize}
         if (y >= 0 && y < ySize) {
-          arr.push([x,y]);
+          if (!excludeCenter || (centerCoords.x !== x || centerCoords.y !== y)) {
+            arr.push([x,y]);
+          }
         }
       }
     }
@@ -204,7 +228,7 @@ var setPaintContainer = function () {
   }
 }
 
-function getVortsAndString(grid) {
+var getVortsAndString = function (grid) {
   // returns both crunched grid data down to a string like 0120210, and an array of vortices
   var gridStr = "";
   var vorts = [];
@@ -220,7 +244,7 @@ function getVortsAndString(grid) {
   return {vorts:vorts, gridStr: gridStr}
 }
 
-function isVort(grid,x,y) {
+var isVort = function (grid,x,y) {
   var neb = vortNb(x,y, grid.length,grid[0].length)
   var vort = []
   for (var i = 0; i < neb.length; i++) {
@@ -232,7 +256,7 @@ function isVort(grid,x,y) {
   return false
 }
 
-function vortNb(x,y,xMax,yMax) {      // outputs the cells required for tracking vortices
+var vortNb = function (x,y,xMax,yMax) {      // outputs the cells required for tracking vortices
   return [ [(x-1+xMax) % xMax, (y-1+yMax) % yMax],
            [(x+xMax) % xMax, (y-1+yMax) % yMax],
            [(x-1+xMax) % xMax, (y+yMax) % yMax],
@@ -240,7 +264,7 @@ function vortNb(x,y,xMax,yMax) {      // outputs the cells required for tracking
          ]
 }
 
-function nextGrid(grid){
+var nextGrid = function (grid){
   var new_grid = [];
 
   for (var i = 0; i < grid.length; i++){
@@ -254,13 +278,14 @@ function nextGrid(grid){
   return new_grid
 }
 
-function updateCell(grid,i,j){
+var updateCell = function (grid,i,j){
   // updates cells according to the rule:
   // let n be the color state of a cell
   // let x be the number of neighbours of color n+1 a cell has
   // a cell of n flips to n+1 iff 'flipThreshold' >= x >= flipLimit
 
-  var adj = adjacentTo(i,j);
+  var adj = getArea({x:i, y:j}, 3, 3, true, true);
+  //var adj = adjacentTo(i,j);
   var val = grid[i][j];
   var val_enemy = (val+colors+1) % colors;
   var count = 0;
@@ -279,7 +304,8 @@ function updateCell(grid,i,j){
   return new_val
 }
 
-function adjacentTo(x,y) {
+/*
+var adjacentTo = function (x,y) {
   // given x and y in the N x N grid, returns the adjacent
   // coordinates. wraps around, hence the need for N
   // why does javascript require this (x+N) % N nonsense?
@@ -295,51 +321,88 @@ function adjacentTo(x,y) {
 
          ]
        }
+*/
 
 var drawMainGrid = function () {
   drawGrid($('main-canvas'), currentGame.frames[currentGame.currentFrame], currentGame.vorts[currentGame.currentFrame]);
 }
 
-function drawGrid(cnvsElm, grid, vorts, doNotDisplayEdgeVorts) {
+var drawGrid = function (cnvsElm, grid, vorts, isClipBoardCanvas) {
   var ctx = cnvsElm.getContext('2d');
 
   var xUnit = cnvsElm.width / grid.length;
   var yUnit = cnvsElm.height / grid[0].length;
   //
-  for (var i = 0; i < grid.length; i++){
+  for (var i = 0; i < grid.length; i++) {
     for (var j = 0; j < grid[i].length; j++) {
       ctx.beginPath();
     	ctx.fillStyle = colours[colors][grid[i][j]];
     	ctx.fillRect(xUnit*i,yUnit*j,xUnit,yUnit);
     }
   }
-  if (displayVorts && vorts) {
-    var radius = Math.min(xUnit, yUnit)/3.5;
-    for (var i = 0; i < vorts.length; i++) {
-      if (!doNotDisplayEdgeVorts) {
-        drawVortex(ctx, xUnit*vorts[i][0], yUnit*vorts[i][1], radius);
-      } else {
-        if (vorts[i][0] !== 0 && vorts[i][1] !== 0) {
-          drawVortex(ctx, xUnit*vorts[i][0], yUnit*vorts[i][1], radius);
+  if (vorts) {
+    if (displayVorts) {
+      var radius = Math.min(xUnit, yUnit)/3.5;
+      for (var i = 0; i < vorts.length; i++) {
+        if (!isClipBoardCanvas) {
+          drawVortex(xUnit*vorts[i][0], yUnit*vorts[i][1], radius);
+        } else {
+          if (vorts[i][0] !== 0 && vorts[i][1] !== 0) {
+            drawVortex(xUnit*vorts[i][0], yUnit*vorts[i][1], radius, isClipBoardCanvas);
+          }
+        }
+        if (!isClipBoardCanvas) {
+          // draw a second(and possibly 3rd or 4th) vortex to represent vortices that fall on the wrapped edges
+          if (vorts[i][0] == 0) {
+            drawVortex(cnvsElm.width, yUnit*vorts[i][1], radius);
+          }
+          if (vorts[i][1] == 0) {
+            drawVortex(xUnit*vorts[i][0], cnvsElm.height, radius);
+          }
+          if (vorts[i][1] == 0 && vorts[i][0] == 0) {
+            drawVortex(cnvsElm.width, cnvsElm.height, radius);
+          }
         }
       }
-      if (!doNotDisplayEdgeVorts) {
-        // draw a second(and possibly 3rd or 4th) vortex to represent vortices that fall on the wrapped edges
-        if (vorts[i][0] == 0) {
-          drawVortex(ctx, cnvsElm.width, yUnit*vorts[i][1], radius);
-        }
-        if (vorts[i][1] == 0) {
-          drawVortex(ctx, xUnit*vorts[i][0], cnvsElm.height, radius);
-        }
-        if (vorts[i][1] == 0 && vorts[i][0] == 0) {
-          drawVortex(ctx, cnvsElm.width, cnvsElm.height, radius);
+    }
+    if (displayVortPath) {
+      var previousVorts = currentGame.vorts[currentGame.currentFrame-1];
+      if (previousVorts && previousVorts.length) {
+        var vortCtx = $('vortex-canvas').getContext('2d');
+        vortCtx.lineWidth = Math.min(xUnit, yUnit)/10;
+        for (var i = 0; i < vorts.length; i++) {
+          var x0 = vorts[i][0];
+          var y0 = vorts[i][1];
+          var areaList = getArea({x:x0, y:y0}, 3, 3, true, true);
+          var ref = {}
+          for (var j = 0; j < areaList.length; j++) {
+            ref[areaList[j]] = true;
+          }
+          for (var j = 0; j < previousVorts.length; j++) {
+            if (ref[previousVorts[j]]) {
+              var x1 = previousVorts[j][0];
+              var y1 = previousVorts[j][1];
+              // draw the boy's path
+              if (Math.abs(x0-x1) > 2) {x0 = xSize; x1 = xSize-1;}
+              if (Math.abs(y0-y1) > 2) {y0 = ySize; y1 = ySize-1;}
+              vortCtx.beginPath();
+              vortCtx.moveTo(x1*xUnit, y1*yUnit);
+              vortCtx.lineTo(x0*xUnit, y0*yUnit);
+              vortCtx.stroke();
+            }
+          }
         }
       }
     }
   }
 }
 
-var drawVortex = function (ctx, x, y, radius) {
+var drawVortex = function (x, y, radius, isClipBoardCanvas) {
+  if (isClipBoardCanvas) {
+    var ctx = $('clipboard-canvas').getContext('2d');
+  } else {
+    var ctx = $('main-canvas').getContext('2d');
+  }
   ctx.fillStyle = "#000000"
   ctx.beginPath();
   ctx.arc(x, y, radius, 0, 2 * Math.PI);
@@ -358,7 +421,7 @@ var refreshDisplay = function () {
 
 // returns a string with all the vortex coordinates that can
 // be nicely displayed in the HTML
-function vortString(vortList) {
+var vortString = function (vortList) {
   var vortStr = "";
   for (var i = 0; i < vortList.length; i++) {
     vortStr += "[" + vortList[i][0].toString() + "," + vortList[i][1].toString() + "]"
@@ -369,7 +432,7 @@ function vortString(vortList) {
   return vortStr
 }
 
-function toggleDisplayVortLocs() {
+var toggleDisplayVortLocs = function () {
   displayVortLocs = !displayVortLocs
   if (displayVortLocs) {
     $('vortLocs').innerHTML = vortString(currentGame.vorts[currentGame.currentFrame]);
@@ -381,7 +444,7 @@ function toggleDisplayVortLocs() {
   }
 }
 
-function toggleDisplayVorts() {
+var toggleDisplayVorts = function () {
   displayVorts = !displayVorts;
 
   drawMainGrid();
@@ -396,10 +459,24 @@ function toggleDisplayVorts() {
   }
 }
 
+var toggleDisplayVortPath = function () {
+  displayVortPath = !displayVortPath;
+
+  clearVortPaths();
+
+  if (displayVortPath) {
+    $('displayVortPathButton').innerHTML = "hide vort path";
+  } else {
+    $('displayVortPathButton').innerHTML = "show vort path";
+  }
+}
+var clearVortPaths = function () {
+  $('vortex-canvas').getContext('2d').clearRect(0, 0, $('vortex-canvas').width, $('vortex-canvas').height);
+}
 
 
 // THIS makes the world go around
-function forwardOneStep(nonVisual){
+var forwardOneStep = function (nonVisual){
   var game = currentGame;
   game.currentFrame++;
   if (game.frames[game.currentFrame]) {   // we already have data for this frame
@@ -494,6 +571,7 @@ var goToFrame = function () {
   } else {
     currentGame.currentFrame = frame;
     //
+    clearVortPaths();
     refreshDisplay();
   }
 }
@@ -512,6 +590,7 @@ var initGame = function (grid, nonVisual) {
 
   if (!nonVisual) {
     refreshDisplay();
+    clearVortPaths();
 
     $("loopFound").classList.add('removed');
     $("timeTillLoop").classList.add('removed');
@@ -540,7 +619,7 @@ var exportGridToJsonString = function (grid) {
   return str;
 }
 
-function getCustomLevel() {
+var getCustomLevel = function () {
   stopContinuousPlay();
 
   var grid = currentGame.frames[currentGame.currentFrame];
@@ -569,7 +648,7 @@ var selectFullInputContents = function (elem) {
   elem.setSelectionRange(0, -1);
 }
 
-function setCustomLevel(input) {  // input is an array(of arrays) of griddata, defaults to GUI input field if not given
+var setCustomLevel = function (input) {  // input is an array(of arrays) of griddata, defaults to GUI input field if not given
   if (!input) { input = JSON.parse($('customLevelInput').value) }
 
   var gridObj = input;
@@ -580,11 +659,11 @@ function setCustomLevel(input) {  // input is an array(of arrays) of griddata, d
   initGame(gridObj);
 }
 
-function makeCurrentGridRandom(nonVisual){
+var makeCurrentGridRandom = function (nonVisual){
   initGame(generateRandomGrid(xSize,ySize), nonVisual);
 }
 
-function generateRandomGrid(x,y){
+var generateRandomGrid = function (x,y){
   var grid = []
   for (var i = 0; i < x; i++){
     var new_row = []
@@ -837,11 +916,21 @@ var loadFromAddressBarOnPageLoad = function () {
 loadFromAddressBarOnPageLoad();
 setPaintContainer();
 
+var downloadImage = function () {
+  $('secret-canvas').getContext('2d').drawImage($('main-canvas'), 0,0);
+  $('secret-canvas').getContext('2d').drawImage($('vortex-canvas'), 0,0);
+  //
+  var date = new Date();
+  var date = date.getFullYear() +"-"+ date.getMonth()+1 +"-"+ date.getDate() +"-"+ date.getHours() +":"+ date.getMinutes() +":"+ date.getSeconds();
+  $('secrect-link').download = "rps-" + date;
+  //
+  var dataURL = $('secret-canvas').toDataURL();
+  $('secrect-link').href = dataURL;
+  $('secrect-link').click();
+}
 
 
 ///// vortex graph stuff
-
-
 
 // given the colours around a vertex, the type of boundary one wishes to follow
 // and the direction one came into the vertex from, gives the direction to go in
@@ -896,13 +985,13 @@ var vortListCheck = function(list,pos) {
 
 
 // prints the vortex graph to the console
-// everything is a var because it wasn't working 
+// everything is a var because it wasn't working
 var getVortexGraph = function() {
 
   var frame_num = $("vortGraphFrame").value
   $('frame-input').value = frame_num
   goToFrame()
-  var canv = $("main-canvas")
+  var canv = $("main-canvas");
   var ctx = canv.getContext('2d');
 
   ctx.fillStyle = "#000000"

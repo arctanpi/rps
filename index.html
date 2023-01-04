@@ -28,6 +28,10 @@
 		left: 50%;
 		transform: translate(-50%, 0%);
 	}
+	#download-button {
+    float: right;
+    font-size: 2em;
+	}
 	.removed {display: none;}
 </style>
 </head>
@@ -39,11 +43,14 @@
 	<wrapper id="not-bulk">
 
 	<div id="gameWindow">
+		<canvas id="secret-canvas" class="game-canvas removed" width="500" height="500" style="border:1px solid #000000;"></canvas>
 		<canvas id="main-canvas" class="game-canvas" width="500" height="500" style="border:1px solid #000000;"></canvas>
 		<canvas id="overlay-canvas" class="game-canvas removed" width="500" height="500" onmousedown="startPaint(event)" onmousemove="mouseMove(event, this)" onmouseleave="mouseLeave(this)" style="border:1px solid #000000; cursor: none;"></canvas>
+		<canvas id="vortex-canvas" class="game-canvas" width="500" height="500" onmousedown="startPaint(event)" onmousemove="mouseMove(event, this)" onmouseleave="mouseLeave(this)" style="border:1px solid #000000; cursor: none; pointer-events: none;"></canvas>
+		<button id="download-button" onclick="downloadImage()">▼</button>
 	</div>
-
 	<text id="frameCount"></text>
+	<a id="secrect-link" class="removed"></a>
 
 	<br>
 	<br>
@@ -121,6 +128,7 @@
 
 	<button id="displayVortsButton" onclick = "toggleDisplayVorts()" style = "width:100px"> hide vorts </button>
 	<button id="displayVortLocsButton" onclick = "toggleDisplayVortLocs()" style = "width:130px"> show vort coords </button>
+	<button id="displayVortPathButton" onclick = "toggleDisplayVortPath()" style = "width:120px"> show vort path </button>
 
 	<p id="vortNum"># vortices: 10</p>
 	<p id="vortLocs" class="removed"></p>
