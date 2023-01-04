@@ -85,14 +85,34 @@
 		<label for = "brush-size-input-y" style="vertical-align: sub;">brush y:</label>
 		<input value=3 type="number" id="brush-size-input-y" onchange="changeBrushSize('y')" min=1 style="width:34px; vertical-align: sub;">
 		<br>
+		<button onclick="rotateGrid()">↻</button>
+		<button onclick="reflectGrid()">⇄</button>
+		<button onclick="translateGrid(-1,0)">🡠</button>
+		<button onclick="translateGrid(1,0)">🡢</button>
+		<button onclick="translateGrid(0,-1)">🡡</button>
+		<button onclick="translateGrid(0,1)">🡣</button>
+		<button onclick="colorRotateGrid()">rotate colors</button>
+
+		<br>
 		<wrapper id="clipboard-wrapper" class="removed">
+			<br>
 			<label for="clipboard-canvas" style="vertical-align: top;">clipboard:</label>
 			<canvas id="clipboard-canvas" style="border:1px solid #000000;"></canvas>
 		</wrapper>
 		<br>
 		<input type="text" id="clipboard-input">
-		<!-- <button id="clipboard-export" class="removed" onclick="exportClipboard()">export clipboard to string</button> -->
 		<button onclick="importClipboard()">load clipboard from string</button>
+		<br>
+		<wrapper id="clipboard-button-wrapper" class="removed">
+			<button onclick="rotateGrid(true)">↻</button>
+			<button onclick="reflectGrid(true)">⇄</button>
+			<button onclick="translateGrid(-1,0, true)">🡠</button>
+			<button onclick="translateGrid(1,0, true)">🡢</button>
+			<button onclick="translateGrid(0,-1, true)">🡡</button>
+			<button onclick="translateGrid(0,1, true)">🡣</button>
+			<button onclick="colorRotateGrid(true)">rotate colors</button>
+	</wrapper>
+
 	</div>
 
 	<br>

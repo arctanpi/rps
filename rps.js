@@ -24,28 +24,41 @@ var clipboard = false;
 
 
 var $ = function (x) {return document.getElementById(x);}
-
-var displayElement = function (elem) {
-  if (typeof elem === "string") {
-    elem = $(elem)
+var displayElements = function () {
+  displayOrRemoveElements(true, arguments);
+}
+var removeElements = function (elem) {
+  displayOrRemoveElements(false, arguments)
+}
+var displayOrRemoveElements = function (display, elemList) {
+  if (typeof elemList[0] === 'object' && elemList[0].length) {
+    elemList = elemList[0];
   }
-  if (elem && typeof elem === "object") {
-    elem.classList.remove('removed');
-  } else {
-    console.error('not an element');
+  for (var i = 0; i < elemList.length; i++) {
+
+    if (typeof elemList[i] === "string") {
+      elemList[i] = $(elemList[i])
+    }
+    if (elemList[i] && typeof elemList[i] === "object") {
+      if (display) {
+        elemList[i].classList.remove('removed');
+      } else {
+        elemList[i].classList.add('removed');
+      }
+    } else {
+      console.error('not an element');
+    }
   }
 }
-var removeElement = function (elem) {
-  if (typeof elem === "string") {
-    elem = $(elem)
-  }
-  if (elem && typeof elem === "object") {
-    elem.classList.add('removed');
+
+var mod = function (a, n) {
+  var r = a+n;
+  if (r < 0) {
+    return mod(r,n);
   } else {
-    console.error('not an element');
+    return r % n;
   }
 }
-
 var getCoords = function (e) {  // from mouse position over canvas
   var rect = e.target.getBoundingClientRect();
   var xCoord = Math.floor((e.clientX - rect.left) / (rect.width / xSize));
@@ -56,11 +69,11 @@ var getArea = function (centerCoords, width, height, wrap, excludeCenter) {
   var arr = [];
   for (var i = 0; i < width; i++) {
     var x = (centerCoords.x - Math.floor((width-1)/2)) + i;
-    if (wrap) {x = (x+xSize) % xSize}
+    if (wrap) {x = mod(x,xSize);}
     if (x >= 0 && x < xSize) {
       for (var j = 0; j < height; j++) {
         var y = (centerCoords.y - Math.floor((height-1)/2)) + j;
-        if (wrap) {y = (y+ySize) % ySize}
+        if (wrap) {y = mod(y,ySize);}
         if (y >= 0 && y < ySize) {
           if (!excludeCenter || (centerCoords.x !== x || centerCoords.y !== y)) {
             arr.push([x,y]);
@@ -144,11 +157,9 @@ var applyPaint = function (coordList, color) {
       ref[coordList[i]] = true;
     }
     for (var i = 0; i < clipboard.length; i++) {
-      var x = coordList[0][0]+i;
-      x = (x+xSize) % xSize;
+      var x = mod(coordList[0][0]+i, xSize);
       for (var j = 0; j < clipboard[i].length; j++) {
-        var y = coordList[0][1]+j;
-        y = (y+ySize) % ySize;
+        var y = mod(coordList[0][1]+j, ySize);
         if (ref[x+","+y]) {
           grid[x][y] = clipboard[i][j];
         }
@@ -163,8 +174,8 @@ var importClipboard = function () {
   refreshClipboardDisplay();
 }
 var refreshClipboardDisplay = function () {
-  $('pasteBrushBtn').classList.remove('removed');
-  $('clipboard-wrapper').classList.remove('removed');
+  displayElements('pasteBrushBtn', 'clipboard-wrapper', 'clipboard-button-wrapper');
+
   $('clipboard-input').value = JSON.stringify(clipboard);
   //
   $('clipboard-canvas').width = ($('main-canvas').getBoundingClientRect().width / xSize) * clipboard.length
@@ -188,7 +199,7 @@ var selectPaint = function (color, btn) {
   stopContinuousPlay();
   deselectPaint();
   brushColor = color;
-  $('overlay-canvas').classList.remove('removed');
+  displayElements('overlay-canvas')
   btn.classList.add('selected');
   if (color === "paste") {
     brushSize[0] = clipboard.length;
@@ -203,7 +214,7 @@ var deselectPaint = function () {
   $('brush-size-input').disabled = false;
   $('brush-size-input-x').disabled = false;
   $('brush-size-input-y').disabled = false;
-  $('overlay-canvas').classList.add('removed');
+  removeElements('overlay-canvas');
   var buttons = $("color-container").childNodes;
   for (var i = 0; i < buttons.length; i++) {
     buttons[i].classList.remove('selected');
@@ -228,6 +239,102 @@ var setPaintContainer = function () {
   }
 }
 
+var rotateGrid = function (isClipboard) {  // clockwise, 1/4 turn
+  if (isClipboard) {
+    var oldG = clipboard;
+  } else {
+    var oldG = currentGame.frames[currentGame.currentFrame];
+  }
+  var newG = [];
+
+  for (var i = 0; i < oldG[0].length; i++) {
+    newG.push([]);
+  }
+
+  for (var i = 0; i < oldG.length; i++) {
+    for (var j = 0; j < oldG[i].length; j++) {
+      newG[(oldG[i].length-1) -j][i] = oldG[i][j];
+    }
+  }
+
+  if (isClipboard) {
+    clipboard = newG;
+    refreshClipboardDisplay();
+  } else {
+    initGame(newG);
+  }
+}
+var reflectGrid = function (isClipboard) {  // left/right
+  if (isClipboard) {
+    var oldG = clipboard;
+  } else {
+    var oldG = currentGame.frames[currentGame.currentFrame];
+  }
+  var newG = [];
+
+  for (var i = 0; i < oldG.length; i++) {
+    newG.push([]);
+  }
+
+  for (var i = 0; i < oldG.length; i++) {
+    for (var j = 0; j < oldG[i].length; j++) {
+      newG[(oldG.length-1) -i][j] = oldG[i][j];
+    }
+  }
+
+  if (isClipboard) {
+    clipboard = newG;
+    refreshClipboardDisplay();
+  } else {
+    initGame(newG);
+  }
+}
+var translateGrid = function (delX, delY, isClipboard) {
+  if (isClipboard) {
+    var oldG = clipboard;
+  } else {
+    var oldG = currentGame.frames[currentGame.currentFrame];
+  }
+  var newG = [];
+
+  for (var i = 0; i < oldG.length; i++) {
+    newG.push([]);
+  }
+
+  for (var i = 0; i < oldG.length; i++) {
+    for (var j = 0; j < oldG[i].length; j++) {
+      newG[mod(i+delX, oldG.length)][mod(j+delY, oldG[i].length)] = oldG[i][j];
+    }
+  }
+
+  if (isClipboard) {
+    clipboard = newG;
+    refreshClipboardDisplay();
+  } else {
+    initGame(newG);
+  }
+}
+var colorRotateGrid = function (isClipboard) {
+  if (isClipboard) {
+    var grid = clipboard;
+  } else {
+    var grid = currentGame.frames[currentGame.currentFrame];
+  }
+
+  for (var i = 0; i < grid.length; i++) {
+    for (var j = 0; j < grid[i].length; j++) {
+      grid[i][j] = mod(grid[i][j] + 1, colors);
+    }
+  }
+
+  if (isClipboard) {
+    clipboard = grid;
+    refreshClipboardDisplay();
+  } else {
+    initGame(grid);
+  }
+}
+
 var getVortsAndString = function (grid) {
   // returns both crunched grid data down to a string like 0120210, and an array of vortices
   var gridStr = "";
@@ -245,7 +352,7 @@ var getVortsAndString = function (grid) {
 }
 
 var isVort = function (grid,x,y) {
-  var neb = vortNb(x,y, grid.length,grid[0].length)
+  var neb = vortNb(x,y, grid.length, grid[0].length)
   var vort = []
   for (var i = 0; i < neb.length; i++) {
     vort.push(grid[neb[i][0]][neb[i][1]]);
@@ -257,10 +364,10 @@ var isVort = function (grid,x,y) {
 }
 
 var vortNb = function (x,y,xMax,yMax) {      // outputs the cells required for tracking vortices
-  return [ [(x-1+xMax) % xMax, (y-1+yMax) % yMax],
-           [(x+xMax) % xMax, (y-1+yMax) % yMax],
-           [(x-1+xMax) % xMax, (y+yMax) % yMax],
-           [(x+xMax) % xMax, (y+yMax) % yMax]
+  return [ [mod(x-1, xMax), mod(y-1, yMax)],
+           [mod(x, xMax), mod(y-1, yMax)],
+           [mod(x-1, xMax), mod(y, yMax)],
+           [mod(x, xMax), mod(y, yMax)]
          ]
 }
 
@@ -285,9 +392,8 @@ var updateCell = function (grid,i,j){
   // a cell of n flips to n+1 iff 'flipThreshold' >= x >= flipLimit
 
   var adj = getArea({x:i, y:j}, 3, 3, true, true);
-  //var adj = adjacentTo(i,j);
   var val = grid[i][j];
-  var val_enemy = (val+colors+1) % colors;
+  var val_enemy = mod(val+1, colors);
   var count = 0;
   for (var i = 0; i < 8; i++) {
     var ac = adj[i]
@@ -303,25 +409,6 @@ var updateCell = function (grid,i,j){
   }
   return new_val
 }
-
-/*
-var adjacentTo = function (x,y) {
-  // given x and y in the N x N grid, returns the adjacent
-  // coordinates. wraps around, hence the need for N
-  // why does javascript require this (x+N) % N nonsense?
-  // who can say. whatever. let's hope it does what I think it does
-  return [ [(x-1+xSize) % xSize, (y-1+ySize) % ySize],
-           [(x+xSize) % xSize, (y-1+ySize) % ySize],
-           [(x+1+xSize) % xSize, (y-1+ySize) % ySize],
-           [(x-1+xSize) % xSize, (y+ySize) % ySize],
-           [(x+1+xSize) % xSize, (y+ySize) % ySize],
-           [(x-1+xSize) % xSize, (y+1+ySize) % ySize],
-           [(x+xSize) % xSize, (y+1+ySize) % ySize],
-           [(x+1+xSize) % xSize, (y+1+ySize) % ySize]
-
-         ]
-       }
-*/
 
 var drawMainGrid = function () {
   drawGrid($('main-canvas'), currentGame.frames[currentGame.currentFrame], currentGame.vorts[currentGame.currentFrame]);
@@ -411,36 +498,26 @@ var drawVortex = function (x, y, radius, isClipBoardCanvas) {
 
 var refreshDisplay = function () {
   if (displayVortLocs) {
-    $('vortLocs').innerHTML = vortString(currentGame.vorts[currentGame.currentFrame]);
+    $('vortLocs').innerHTML = formatVortListIntoString(currentGame.vorts[currentGame.currentFrame]);
   }
   $('vortNum').innerHTML = "# vortices: " + currentGame.vorts[currentGame.currentFrame].length.toString();
   $('frameCount').innerHTML = currentGame.currentFrame;
   drawMainGrid();
 }
 
-
-// returns a string with all the vortex coordinates that can
-// be nicely displayed in the HTML
-var vortString = function (vortList) {
-  var vortStr = "";
-  for (var i = 0; i < vortList.length; i++) {
-    vortStr += "[" + vortList[i][0].toString() + "," + vortList[i][1].toString() + "]"
-    if (i != vortList.length-1) {
-      vortStr += ", "
-    }
-  }
-  return vortStr
+var formatVortListIntoString = function (vortList) {
+  return JSON.stringify(vortList).slice(1,-1);
 }
 
 var toggleDisplayVortLocs = function () {
-  displayVortLocs = !displayVortLocs
+  displayVortLocs = !displayVortLocs;
   if (displayVortLocs) {
-    $('vortLocs').innerHTML = vortString(currentGame.vorts[currentGame.currentFrame]);
-    $("vortLocs").classList.remove('removed');
-    displayVortLocsButton.innerHTML = "hide vort coords"
+    $('vortLocs').innerHTML = formatVortListIntoString(currentGame.vorts[currentGame.currentFrame]);
+    displayElements("vortLocs");
+    displayVortLocsButton.innerHTML = "hide vort coords";
   } else {
-    $("vortLocs").classList.add('removed');
-    displayVortLocsButton.innerHTML = "show vort coords"
+    removeElements("vortLocs");
+    displayVortLocsButton.innerHTML = "show vort coords";
   }
 }
 
@@ -474,7 +551,6 @@ var clearVortPaths = function () {
   $('vortex-canvas').getContext('2d').clearRect(0, 0, $('vortex-canvas').width, $('vortex-canvas').height);
 }
 
-
 // THIS makes the world go around
 var forwardOneStep = function (nonVisual){
   var game = currentGame;
@@ -507,9 +583,8 @@ var forwardOneStep = function (nonVisual){
       } else {
         game.currentFrame = game.loopStart;
         $("timeTillLoop").innerHTML = "iterations until loop: " + game.loopStart;
-        $("loopFound").innerHTML = "loop length: " + game.loopLength.toString()
-        $("timeTillLoop").classList.remove('removed');
-        $("loopFound").classList.remove('removed');
+        $("loopFound").innerHTML = "loop length: " + game.loopLength.toString();
+        displayElements("timeTillLoop", "loopFound");
       }
     } else {
       game.book[next.gridStr] = game.frames.length-1;
@@ -523,7 +598,6 @@ var forwardOneStep = function (nonVisual){
     refreshDisplay();
   }
 }
-
 
 // this makes the world go rounder keep going
 var continuousPlay = function (delay, nonVisual) {    // delay in mS between frame updates
@@ -562,7 +636,6 @@ var stopContinuousPlay = function () {
   clearTimeout(currentGame.timer);
 }
 
-
 var goToFrame = function () {
   stopContinuousPlay();
   var frame = Number($('frame-input').value);
@@ -591,9 +664,9 @@ var initGame = function (grid, nonVisual) {
   if (!nonVisual) {
     refreshDisplay();
     clearVortPaths();
-
-    $("loopFound").classList.add('removed');
-    $("timeTillLoop").classList.add('removed');
+    $('x-input').value = xSize;
+    $('y-input').value = ySize;
+    removeElements("loopFound", "timeTillLoop");
   }
 }
 
@@ -654,8 +727,6 @@ var setCustomLevel = function (input) {  // input is an array(of arrays) of grid
   var gridObj = input;
   xSize = gridObj.length;
   ySize = gridObj[0].length;
-  $('x-input').value = xSize;
-  $('y-input').value = ySize;
   initGame(gridObj);
 }
 
@@ -702,10 +773,9 @@ var bulkRunner = function (quota, arr, stats, timeOfLastBreath) {
     timeOfLastBreath = new Date();
     timeOfLastBreath -= 201;  // to force a breath on the first go through
     $('bulk-heading').innerHTML = "<br><br>PROCESSING "+quota+" RANDOM "+xSize+"x"+ySize+" GRIDS<br>";
-    $('bulk-heading').classList.remove('removed');
     $('bulk-status').innerHTML = "** running game #1 **"
-    $('bulk-status').classList.remove('removed');
-    $('not-bulk').classList.add('removed');
+    displayElements('bulk-heading', 'bulk-status');
+    removeElements('not-bulk');
   }
 
   if (quota === 0) {               // done
@@ -720,8 +790,8 @@ var bulkRunner = function (quota, arr, stats, timeOfLastBreath) {
     //
     $('bulk-status').innerHTML = "**DING**<br>"+secs+"<br>"+dnf+"<br>"+avgs+"open your console for more";
     console.log(arr);
-    $('bulk-heading').classList.add('removed');
-    $('not-bulk').classList.remove('removed');
+    removeElements('bulk-heading');
+    displayElements('not-bulk');
     if (document.hidden) {
       alert("dinner's ready!");
     }
@@ -907,8 +977,6 @@ var loadFromAddressBarOnPageLoad = function () {
       return;
     }
   }
-  $('x-input').value = xSize;
-  $('y-input').value = ySize;
   makeCurrentGridRandom();
 }
 
@@ -1032,7 +1100,7 @@ var getVortexGraph = function() {
 
         var direction = followBoundary(neb_colors,boundary,direction)
 
-        coord_list.push([(coord_list[i][0]+direction[0]+xSize) % xSize, (coord_list[i][1]+direction[1]+ySize) % ySize])
+        coord_list.push([ mod(coord_list[i][0]+direction[0], xSize), mod(coord_list[i][1]+direction[1], ySize)])
 
         var hops = torusHop(coord_list[i],coord_list[i+1],xSize,ySize)
 
