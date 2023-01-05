@@ -14,8 +14,9 @@ var colors = 3;
 var flipThreshold = 3;  // inclusive
 var flipLimit = 8;      // inclusive
 var currentGame = {};
-var displayVortLocs = false;
 var displayVorts = true;
+var displayVortLocs = false;
+var displayVortPath = false;
 var paintDown = false;
 var brushColor = false;
 var brushSize;
@@ -23,24 +24,60 @@ var clipboard = false;
 
 
 var $ = function (x) {return document.getElementById(x);}
+var displayElements = function () {
+  displayOrRemoveElements(true, arguments);
+}
+var removeElements = function (elem) {
+  displayOrRemoveElements(false, arguments)
+}
+var displayOrRemoveElements = function (display, elemList) {
+  if (typeof elemList[0] === 'object' && elemList[0].length) {
+    elemList = elemList[0];
+  }
+  for (var i = 0; i < elemList.length; i++) {
 
+    if (typeof elemList[i] === "string") {
+      elemList[i] = $(elemList[i])
+    }
+    if (elemList[i] && typeof elemList[i] === "object") {
+      if (display) {
+        elemList[i].classList.remove('removed');
+      } else {
+        elemList[i].classList.add('removed');
+      }
+    } else {
+      console.error('not an element');
+    }
+  }
+}
+
+var mod = function (a, n) {
+  var r = a+n;
+  if (r < 0) {
+    return mod(r,n);
+  } else {
+    return r % n;
+  }
+}
 var getCoords = function (e) {  // from mouse position over canvas
   var rect = e.target.getBoundingClientRect();
   var xCoord = Math.floor((e.clientX - rect.left) / (rect.width / xSize));
   var yCoord = Math.floor((e.clientY - rect.top) / (rect.height / ySize));
   return {x:xCoord, y:yCoord};
 }
-var getArea = function (centerCoords, width, height, wrap) {
+var getArea = function (centerCoords, width, height, wrap, excludeCenter) {
   var arr = [];
   for (var i = 0; i < width; i++) {
     var x = (centerCoords.x - Math.floor((width-1)/2)) + i;
-    if (wrap) {x = (x+xSize) % xSize}
+    if (wrap) {x = mod(x,xSize);}
     if (x >= 0 && x < xSize) {
       for (var j = 0; j < height; j++) {
         var y = (centerCoords.y - Math.floor((height-1)/2)) + j;
-        if (wrap) {y = (y+ySize) % ySize}
+        if (wrap) {y = mod(y,ySize);}
         if (y >= 0 && y < ySize) {
-          arr.push([x,y]);
+          if (!excludeCenter || (centerCoords.x !== x || centerCoords.y !== y)) {
+            arr.push([x,y]);
+          }
         }
       }
     }
@@ -120,11 +157,9 @@ var applyPaint = function (coordList, color) {
       ref[coordList[i]] = true;
     }
     for (var i = 0; i < clipboard.length; i++) {
-      var x = coordList[0][0]+i;
-      x = (x+xSize) % xSize;
+      var x = mod(coordList[0][0]+i, xSize);
       for (var j = 0; j < clipboard[i].length; j++) {
-        var y = coordList[0][1]+j;
-        y = (y+ySize) % ySize;
+        var y = mod(coordList[0][1]+j, ySize);
         if (ref[x+","+y]) {
           grid[x][y] = clipboard[i][j];
         }
@@ -139,8 +174,8 @@ var importClipboard = function () {
   refreshClipboardDisplay();
 }
 var refreshClipboardDisplay = function () {
-  $('pasteBrushBtn').classList.remove('removed');
-  $('clipboard-wrapper').classList.remove('removed');
+  displayElements('pasteBrushBtn', 'clipboard-wrapper', 'clipboard-button-wrapper');
+
   $('clipboard-input').value = JSON.stringify(clipboard);
   //
   $('clipboard-canvas').width = ($('main-canvas').getBoundingClientRect().width / xSize) * clipboard.length
@@ -164,7 +199,7 @@ var selectPaint = function (color, btn) {
   stopContinuousPlay();
   deselectPaint();
   brushColor = color;
-  $('overlay-canvas').classList.remove('removed');
+  displayElements('overlay-canvas')
   btn.classList.add('selected');
   if (color === "paste") {
     brushSize[0] = clipboard.length;
@@ -179,7 +214,7 @@ var deselectPaint = function () {
   $('brush-size-input').disabled = false;
   $('brush-size-input-x').disabled = false;
   $('brush-size-input-y').disabled = false;
-  $('overlay-canvas').classList.add('removed');
+  removeElements('overlay-canvas');
   var buttons = $("color-container").childNodes;
   for (var i = 0; i < buttons.length; i++) {
     buttons[i].classList.remove('selected');
@@ -204,7 +239,103 @@ var setPaintContainer = function () {
   }
 }
 
-function getVortsAndString(grid) {
+var rotateGrid = function (isClipboard) {  // clockwise, 1/4 turn
+  if (isClipboard) {
+    var oldG = clipboard;
+  } else {
+    var oldG = currentGame.frames[currentGame.currentFrame];
+  }
+  var newG = [];
+
+  for (var i = 0; i < oldG[0].length; i++) {
+    newG.push([]);
+  }
+
+  for (var i = 0; i < oldG.length; i++) {
+    for (var j = 0; j < oldG[i].length; j++) {
+      newG[(oldG[i].length-1) -j][i] = oldG[i][j];
+    }
+  }
+
+  if (isClipboard) {
+    clipboard = newG;
+    refreshClipboardDisplay();
+  } else {
+    initGame(newG);
+  }
+}
+var reflectGrid = function (isClipboard) {  // left/right
+  if (isClipboard) {
+    var oldG = clipboard;
+  } else {
+    var oldG = currentGame.frames[currentGame.currentFrame];
+  }
+  var newG = [];
+
+  for (var i = 0; i < oldG.length; i++) {
+    newG.push([]);
+  }
+
+  for (var i = 0; i < oldG.length; i++) {
+    for (var j = 0; j < oldG[i].length; j++) {
+      newG[(oldG.length-1) -i][j] = oldG[i][j];
+    }
+  }
+
+  if (isClipboard) {
+    clipboard = newG;
+    refreshClipboardDisplay();
+  } else {
+    initGame(newG);
+  }
+}
+var translateGrid = function (delX, delY, isClipboard) {
+  if (isClipboard) {
+    var oldG = clipboard;
+  } else {
+    var oldG = currentGame.frames[currentGame.currentFrame];
+  }
+  var newG = [];
+
+  for (var i = 0; i < oldG.length; i++) {
+    newG.push([]);
+  }
+
+  for (var i = 0; i < oldG.length; i++) {
+    for (var j = 0; j < oldG[i].length; j++) {
+      newG[mod(i+delX, oldG.length)][mod(j+delY, oldG[i].length)] = oldG[i][j];
+    }
+  }
+
+  if (isClipboard) {
+    clipboard = newG;
+    refreshClipboardDisplay();
+  } else {
+    initGame(newG);
+  }
+}
+var colorRotateGrid = function (isClipboard) {
+  if (isClipboard) {
+    var grid = clipboard;
+  } else {
+    var grid = currentGame.frames[currentGame.currentFrame];
+  }
+
+  for (var i = 0; i < grid.length; i++) {
+    for (var j = 0; j < grid[i].length; j++) {
+      grid[i][j] = mod(grid[i][j] + 1, colors);
+    }
+  }
+
+  if (isClipboard) {
+    clipboard = grid;
+    refreshClipboardDisplay();
+  } else {
+    initGame(grid);
+  }
+}
+
+var getVortsAndString = function (grid) {
   // returns both crunched grid data down to a string like 0120210, and an array of vortices
   var gridStr = "";
   var vorts = [];
@@ -220,8 +351,8 @@ function getVortsAndString(grid) {
   return {vorts:vorts, gridStr: gridStr}
 }
 
-function isVort(grid,x,y) {
-  var neb = vortNb(x,y, grid.length,grid[0].length)
+var isVort = function (grid,x,y) {
+  var neb = vortNb(x,y, grid.length, grid[0].length)
   var vort = []
   for (var i = 0; i < neb.length; i++) {
     vort.push(grid[neb[i][0]][neb[i][1]]);
@@ -232,15 +363,15 @@ function isVort(grid,x,y) {
   return false
 }
 
-function vortNb(x,y,xMax,yMax) {      // outputs the cells required for tracking vortices
-  return [ [(x-1+xMax) % xMax, (y-1+yMax) % yMax],
-           [(x+xMax) % xMax, (y-1+yMax) % yMax],
-           [(x-1+xMax) % xMax, (y+yMax) % yMax],
-           [(x+xMax) % xMax, (y+yMax) % yMax]
+var vortNb = function (x,y,xMax,yMax) {      // outputs the cells required for tracking vortices
+  return [ [mod(x-1, xMax), mod(y-1, yMax)],
+           [mod(x, xMax), mod(y-1, yMax)],
+           [mod(x-1, xMax), mod(y, yMax)],
+           [mod(x, xMax), mod(y, yMax)]
          ]
 }
 
-function nextGrid(grid){
+var nextGrid = function (grid){
   var new_grid = [];
 
   for (var i = 0; i < grid.length; i++){
@@ -254,15 +385,15 @@ function nextGrid(grid){
   return new_grid
 }
 
-function updateCell(grid,i,j){
+var updateCell = function (grid,i,j){
   // updates cells according to the rule:
   // let n be the color state of a cell
   // let x be the number of neighbours of color n+1 a cell has
   // a cell of n flips to n+1 iff 'flipThreshold' >= x >= flipLimit
 
-  var adj = adjacentTo(i,j);
+  var adj = getArea({x:i, y:j}, 3, 3, true, true);
   var val = grid[i][j];
-  var val_enemy = (val+colors+1) % colors;
+  var val_enemy = mod(val+1, colors);
   var count = 0;
   for (var i = 0; i < 8; i++) {
     var ac = adj[i]
@@ -279,67 +410,86 @@ function updateCell(grid,i,j){
   return new_val
 }
 
-function adjacentTo(x,y) {
-  // given x and y in the N x N grid, returns the adjacent
-  // coordinates. wraps around, hence the need for N
-  // why does javascript require this (x+N) % N nonsense?
-  // who can say. whatever. let's hope it does what I think it does
-  return [ [(x-1+xSize) % xSize, (y-1+ySize) % ySize],
-           [(x+xSize) % xSize, (y-1+ySize) % ySize],
-           [(x+1+xSize) % xSize, (y-1+ySize) % ySize],
-           [(x-1+xSize) % xSize, (y+ySize) % ySize],
-           [(x+1+xSize) % xSize, (y+ySize) % ySize],
-           [(x-1+xSize) % xSize, (y+1+ySize) % ySize],
-           [(x+xSize) % xSize, (y+1+ySize) % ySize],
-           [(x+1+xSize) % xSize, (y+1+ySize) % ySize]
-
-         ]
-       }
-
 var drawMainGrid = function () {
   drawGrid($('main-canvas'), currentGame.frames[currentGame.currentFrame], currentGame.vorts[currentGame.currentFrame]);
 }
 
-function drawGrid(cnvsElm, grid, vorts, doNotDisplayEdgeVorts) {
+var drawGrid = function (cnvsElm, grid, vorts, isClipBoardCanvas) {
   var ctx = cnvsElm.getContext('2d');
 
   var xUnit = cnvsElm.width / grid.length;
   var yUnit = cnvsElm.height / grid[0].length;
   //
-  for (var i = 0; i < grid.length; i++){
+  for (var i = 0; i < grid.length; i++) {
     for (var j = 0; j < grid[i].length; j++) {
       ctx.beginPath();
     	ctx.fillStyle = colours[colors][grid[i][j]];
     	ctx.fillRect(xUnit*i,yUnit*j,xUnit,yUnit);
     }
   }
-  if (displayVorts && vorts) {
-    var radius = Math.min(xUnit, yUnit)/3.5;
-    for (var i = 0; i < vorts.length; i++) {
-      if (!doNotDisplayEdgeVorts) {
-        drawVortex(ctx, xUnit*vorts[i][0], yUnit*vorts[i][1], radius);
-      } else {
-        if (vorts[i][0] !== 0 && vorts[i][1] !== 0) {
-          drawVortex(ctx, xUnit*vorts[i][0], yUnit*vorts[i][1], radius);
+  if (vorts) {
+    if (displayVorts) {
+      var radius = Math.min(xUnit, yUnit)/3.5;
+      for (var i = 0; i < vorts.length; i++) {
+        if (!isClipBoardCanvas) {
+          drawVortex(xUnit*vorts[i][0], yUnit*vorts[i][1], radius);
+        } else {
+          if (vorts[i][0] !== 0 && vorts[i][1] !== 0) {
+            drawVortex(xUnit*vorts[i][0], yUnit*vorts[i][1], radius, isClipBoardCanvas);
+          }
+        }
+        if (!isClipBoardCanvas) {
+          // draw a second(and possibly 3rd or 4th) vortex to represent vortices that fall on the wrapped edges
+          if (vorts[i][0] == 0) {
+            drawVortex(cnvsElm.width, yUnit*vorts[i][1], radius);
+          }
+          if (vorts[i][1] == 0) {
+            drawVortex(xUnit*vorts[i][0], cnvsElm.height, radius);
+          }
+          if (vorts[i][1] == 0 && vorts[i][0] == 0) {
+            drawVortex(cnvsElm.width, cnvsElm.height, radius);
+          }
         }
       }
-      if (!doNotDisplayEdgeVorts) {
-        // draw a second(and possibly 3rd or 4th) vortex to represent vortices that fall on the wrapped edges
-        if (vorts[i][0] == 0) {
-          drawVortex(ctx, cnvsElm.width, yUnit*vorts[i][1], radius);
-        }
-        if (vorts[i][1] == 0) {
-          drawVortex(ctx, xUnit*vorts[i][0], cnvsElm.height, radius);
-        }
-        if (vorts[i][1] == 0 && vorts[i][0] == 0) {
-          drawVortex(ctx, cnvsElm.width, cnvsElm.height, radius);
+    }
+    if (displayVortPath) {
+      var previousVorts = currentGame.vorts[currentGame.currentFrame-1];
+      if (previousVorts && previousVorts.length) {
+        var vortCtx = $('vortex-canvas').getContext('2d');
+        vortCtx.lineWidth = Math.min(xUnit, yUnit)/10;
+        for (var i = 0; i < vorts.length; i++) {
+          var x0 = vorts[i][0];
+          var y0 = vorts[i][1];
+          var areaList = getArea({x:x0, y:y0}, 3, 3, true, true);
+          var ref = {}
+          for (var j = 0; j < areaList.length; j++) {
+            ref[areaList[j]] = true;
+          }
+          for (var j = 0; j < previousVorts.length; j++) {
+            if (ref[previousVorts[j]]) {
+              var x1 = previousVorts[j][0];
+              var y1 = previousVorts[j][1];
+              // draw the boy's path
+              if (Math.abs(x0-x1) > 2) {x0 = xSize; x1 = xSize-1;}
+              if (Math.abs(y0-y1) > 2) {y0 = ySize; y1 = ySize-1;}
+              vortCtx.beginPath();
+              vortCtx.moveTo(x1*xUnit, y1*yUnit);
+              vortCtx.lineTo(x0*xUnit, y0*yUnit);
+              vortCtx.stroke();
+            }
+          }
         }
       }
     }
   }
 }
 
-var drawVortex = function (ctx, x, y, radius) {
+var drawVortex = function (x, y, radius, isClipBoardCanvas) {
+  if (isClipBoardCanvas) {
+    var ctx = $('clipboard-canvas').getContext('2d');
+  } else {
+    var ctx = $('main-canvas').getContext('2d');
+  }
   ctx.fillStyle = "#000000"
   ctx.beginPath();
   ctx.arc(x, y, radius, 0, 2 * Math.PI);
@@ -348,40 +498,30 @@ var drawVortex = function (ctx, x, y, radius) {
 
 var refreshDisplay = function () {
   if (displayVortLocs) {
-    $('vortLocs').innerHTML = vortString(currentGame.vorts[currentGame.currentFrame]);
+    $('vortLocs').innerHTML = formatVortListIntoString(currentGame.vorts[currentGame.currentFrame]);
   }
   $('vortNum').innerHTML = "# vortices: " + currentGame.vorts[currentGame.currentFrame].length.toString();
   $('frameCount').innerHTML = currentGame.currentFrame;
   drawMainGrid();
 }
 
-
-// returns a string with all the vortex coordinates that can
-// be nicely displayed in the HTML
-function vortString(vortList) {
-  var vortStr = "";
-  for (var i = 0; i < vortList.length; i++) {
-    vortStr += "[" + vortList[i][0].toString() + "," + vortList[i][1].toString() + "]"
-    if (i != vortList.length-1) {
-      vortStr += ", "
-    }
-  }
-  return vortStr
+var formatVortListIntoString = function (vortList) {
+  return JSON.stringify(vortList).slice(1,-1);
 }
 
-function toggleDisplayVortLocs() {
-  displayVortLocs = !displayVortLocs
+var toggleDisplayVortLocs = function () {
+  displayVortLocs = !displayVortLocs;
   if (displayVortLocs) {
-    $('vortLocs').innerHTML = vortString(currentGame.vorts[currentGame.currentFrame]);
-    $("vortLocs").classList.remove('removed');
-    displayVortLocsButton.innerHTML = "hide vort coords"
+    $('vortLocs').innerHTML = formatVortListIntoString(currentGame.vorts[currentGame.currentFrame]);
+    displayElements("vortLocs");
+    displayVortLocsButton.innerHTML = "hide vort coords";
   } else {
-    $("vortLocs").classList.add('removed');
-    displayVortLocsButton.innerHTML = "show vort coords"
+    removeElements("vortLocs");
+    displayVortLocsButton.innerHTML = "show vort coords";
   }
 }
 
-function toggleDisplayVorts() {
+var toggleDisplayVorts = function () {
   displayVorts = !displayVorts;
 
   drawMainGrid();
@@ -396,10 +536,23 @@ function toggleDisplayVorts() {
   }
 }
 
+var toggleDisplayVortPath = function () {
+  displayVortPath = !displayVortPath;
 
+  clearVortPaths();
+
+  if (displayVortPath) {
+    $('displayVortPathButton').innerHTML = "hide vort path";
+  } else {
+    $('displayVortPathButton').innerHTML = "show vort path";
+  }
+}
+var clearVortPaths = function () {
+  $('vortex-canvas').getContext('2d').clearRect(0, 0, $('vortex-canvas').width, $('vortex-canvas').height);
+}
 
 // THIS makes the world go around
-function forwardOneStep(nonVisual){
+var forwardOneStep = function (nonVisual){
   var game = currentGame;
   game.currentFrame++;
   if (game.frames[game.currentFrame]) {   // we already have data for this frame
@@ -430,9 +583,8 @@ function forwardOneStep(nonVisual){
       } else {
         game.currentFrame = game.loopStart;
         $("timeTillLoop").innerHTML = "iterations until loop: " + game.loopStart;
-        $("loopFound").innerHTML = "loop length: " + game.loopLength.toString()
-        $("timeTillLoop").classList.remove('removed');
-        $("loopFound").classList.remove('removed');
+        $("loopFound").innerHTML = "loop length: " + game.loopLength.toString();
+        displayElements("timeTillLoop", "loopFound");
       }
     } else {
       game.book[next.gridStr] = game.frames.length-1;
@@ -446,7 +598,6 @@ function forwardOneStep(nonVisual){
     refreshDisplay();
   }
 }
-
 
 // this makes the world go rounder keep going
 var continuousPlay = function (delay, nonVisual) {    // delay in mS between frame updates
@@ -485,7 +636,6 @@ var stopContinuousPlay = function () {
   clearTimeout(currentGame.timer);
 }
 
-
 var goToFrame = function () {
   stopContinuousPlay();
   var frame = Number($('frame-input').value);
@@ -494,6 +644,7 @@ var goToFrame = function () {
   } else {
     currentGame.currentFrame = frame;
     //
+    clearVortPaths();
     refreshDisplay();
   }
 }
@@ -512,9 +663,10 @@ var initGame = function (grid, nonVisual) {
 
   if (!nonVisual) {
     refreshDisplay();
-
-    $("loopFound").classList.add('removed');
-    $("timeTillLoop").classList.add('removed');
+    clearVortPaths();
+    $('x-input').value = xSize;
+    $('y-input').value = ySize;
+    removeElements("loopFound", "timeTillLoop");
   }
 }
 
@@ -540,7 +692,7 @@ var exportGridToJsonString = function (grid) {
   return str;
 }
 
-function getCustomLevel() {
+var getCustomLevel = function () {
   stopContinuousPlay();
 
   var grid = currentGame.frames[currentGame.currentFrame];
@@ -569,22 +721,20 @@ var selectFullInputContents = function (elem) {
   elem.setSelectionRange(0, -1);
 }
 
-function setCustomLevel(input) {  // input is an array(of arrays) of griddata, defaults to GUI input field if not given
+var setCustomLevel = function (input) {  // input is an array(of arrays) of griddata, defaults to GUI input field if not given
   if (!input) { input = JSON.parse($('customLevelInput').value) }
 
   var gridObj = input;
   xSize = gridObj.length;
   ySize = gridObj[0].length;
-  $('x-input').value = xSize;
-  $('y-input').value = ySize;
   initGame(gridObj);
 }
 
-function makeCurrentGridRandom(nonVisual){
+var makeCurrentGridRandom = function (nonVisual){
   initGame(generateRandomGrid(xSize,ySize), nonVisual);
 }
 
-function generateRandomGrid(x,y){
+var generateRandomGrid = function (x,y){
   var grid = []
   for (var i = 0; i < x; i++){
     var new_row = []
@@ -623,10 +773,9 @@ var bulkRunner = function (quota, arr, stats, timeOfLastBreath) {
     timeOfLastBreath = new Date();
     timeOfLastBreath -= 201;  // to force a breath on the first go through
     $('bulk-heading').innerHTML = "<br><br>PROCESSING "+quota+" RANDOM "+xSize+"x"+ySize+" GRIDS<br>";
-    $('bulk-heading').classList.remove('removed');
     $('bulk-status').innerHTML = "** running game #1 **"
-    $('bulk-status').classList.remove('removed');
-    $('not-bulk').classList.add('removed');
+    displayElements('bulk-heading', 'bulk-status');
+    removeElements('not-bulk');
   }
 
   if (quota === 0) {               // done
@@ -641,8 +790,8 @@ var bulkRunner = function (quota, arr, stats, timeOfLastBreath) {
     //
     $('bulk-status').innerHTML = "**DING**<br>"+secs+"<br>"+dnf+"<br>"+avgs+"open your console for more";
     console.log(arr);
-    $('bulk-heading').classList.add('removed');
-    $('not-bulk').classList.remove('removed');
+    removeElements('bulk-heading');
+    displayElements('not-bulk');
     if (document.hidden) {
       alert("dinner's ready!");
     }
@@ -828,8 +977,6 @@ var loadFromAddressBarOnPageLoad = function () {
       return;
     }
   }
-  $('x-input').value = xSize;
-  $('y-input').value = ySize;
   makeCurrentGridRandom();
 }
 
@@ -837,11 +984,21 @@ var loadFromAddressBarOnPageLoad = function () {
 loadFromAddressBarOnPageLoad();
 setPaintContainer();
 
+var downloadImage = function () {
+  $('secret-canvas').getContext('2d').drawImage($('main-canvas'), 0,0);
+  $('secret-canvas').getContext('2d').drawImage($('vortex-canvas'), 0,0);
+  //
+  var date = new Date();
+  var date = date.getFullYear() +"-"+ date.getMonth()+1 +"-"+ date.getDate() +"-"+ date.getHours() +":"+ date.getMinutes() +":"+ date.getSeconds();
+  $('secrect-link').download = "rps-" + date;
+  //
+  var dataURL = $('secret-canvas').toDataURL();
+  $('secrect-link').href = dataURL;
+  $('secrect-link').click();
+}
 
 
 ///// vortex graph stuff
-
-
 
 // given the colours around a vertex, the type of boundary one wishes to follow
 // and the direction one came into the vertex from, gives the direction to go in
@@ -896,13 +1053,13 @@ var vortListCheck = function(list,pos) {
 
 
 // prints the vortex graph to the console
-// everything is a var because it wasn't working 
+// everything is a var because it wasn't working
 var getVortexGraph = function() {
 
   var frame_num = $("vortGraphFrame").value
   $('frame-input').value = frame_num
   goToFrame()
-  var canv = $("main-canvas")
+  var canv = $("main-canvas");
   var ctx = canv.getContext('2d');
 
   ctx.fillStyle = "#000000"
@@ -943,7 +1100,7 @@ var getVortexGraph = function() {
 
         var direction = followBoundary(neb_colors,boundary,direction)
 
-        coord_list.push([(coord_list[i][0]+direction[0]+xSize) % xSize, (coord_list[i][1]+direction[1]+ySize) % ySize])
+        coord_list.push([ mod(coord_list[i][0]+direction[0], xSize), mod(coord_list[i][1]+direction[1], ySize)])
 
         var hops = torusHop(coord_list[i],coord_list[i+1],xSize,ySize)
 
