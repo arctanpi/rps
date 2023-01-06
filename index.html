@@ -6,9 +6,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <link rel="icon" type="image/png" href="icon.PNG">
 <style media="screen">
+	* {box-sizing: border-box;}
 	body {background: gainsboro;}
 	.color-button {
-		box-sizing: border-box;
 		margin: 5px;
 		padding: 12px;
 		cursor: pointer;
@@ -18,19 +18,46 @@
 	.selected {
 		box-shadow: 0px 0px 2px 3px #ffffff;
 	}
+	.not-bulk {
+		display: flex;
+		justify-content: center;
+		flex-wrap: wrap;
+		align-items: end;
+	}
+	#game-wrapper {
+		height: 98vmin;
+		width: 98vmin;
+		align-self: flex-start;
+	}
 	#gameWindow {
 		position: relative;
-		height: 70.5vmin;
+		height: 95%;
+		margin: 3px;
 	}
 	.game-canvas {
-		width: 70vmin;
+		height: 100%;
 		position: absolute;
 		left: 50%;
 		transform: translate(-50%, 0%);
 	}
-	#download-button {
-    float: right;
-    font-size: 2em;
+	#frame-info {text-align: left;}
+	#frameCount {font-size: 3em;}
+	#download-button {display: block;}
+	input {margin: 4px 0;}
+	#meta-wrapper{
+		padding-bottom: 5px;
+	}
+	.section {
+		margin: 10px 0;
+		padding: 4px;
+		border-style: groove;
+    width: 440px;
+	}
+	#symmetry-box{
+		display: inline-block;
+		border-style: ridge;
+		margin: 3px;
+		padding: 3px;
 	}
 	.removed {display: none;}
 </style>
@@ -40,128 +67,144 @@
 	<p id="bulk-heading" class="removed"></p>
 	<p id="bulk-status" class="removed"></p>
 
-	<wrapper id="not-bulk">
+	<wrapper class="not-bulk" id="not-bulk">
 
-	<div id="gameWindow">
-		<canvas id="secret-canvas" class="game-canvas removed" width="500" height="500" style="border:1px solid #000000;"></canvas>
-		<canvas id="main-canvas" class="game-canvas" width="500" height="500" style="border:1px solid #000000;"></canvas>
-		<canvas id="overlay-canvas" class="game-canvas removed" width="500" height="500" onmousedown="startPaint(event)" onmousemove="mouseMove(event, this)" onmouseleave="mouseLeave(this)" style="border:1px solid #000000; cursor: none;"></canvas>
-		<canvas id="vortex-canvas" class="game-canvas" width="500" height="500" onmousedown="startPaint(event)" onmousemove="mouseMove(event, this)" onmouseleave="mouseLeave(this)" style="border:1px solid #000000; cursor: none; pointer-events: none;"></canvas>
-		<button id="download-button" onclick="downloadImage()">▼</button>
-	</div>
-	<text id="frameCount"></text>
-	<a id="secrect-link" class="removed"></a>
+		<div id="game-wrapper">
+			<div id="gameWindow">
+				<canvas id="secret-canvas" class="game-canvas removed" width="500" height="500" style="border:1px solid #000000;"></canvas>
+				<canvas id="main-canvas" class="game-canvas" width="500" height="500" style="border:1px solid #000000;"></canvas>
+				<canvas id="overlay-canvas" class="game-canvas removed" width="500" height="500" onmousedown="startPaint(event)" onmousemove="mouseMove(event, this)" onmouseleave="mouseLeave(this)" style="border:1px solid #000000; cursor: none;"></canvas>
+				<canvas id="vortex-canvas" class="game-canvas" width="500" height="500" onmousedown="startPaint(event)" onmousemove="mouseMove(event, this)" onmouseleave="mouseLeave(this)" style="border:1px solid #000000; cursor: none; pointer-events: none;"></canvas>
+			</div>
 
-	<br>
-	<br>
+			<button onclick = "deselectPaint(); forwardOneStep()" style = "width:90px"> +1 frame </button>
+			<button onclick = "deselectPaint(); continuousPlay(500)" style = "width:90px"> go slow </button>
+			<button onclick = "deselectPaint(); continuousPlay(100)" style = "width:90px"> go med </button>
+			<button onclick = "deselectPaint(); continuousPlay(20)" style = "width:90px"> go fast </button>
+			<button onclick = "deselectPaint(); continuousPlay(0)" style = "width:90px"> go fastest </button>
+			<button onclick = "stopContinuousPlay()" style = "width:90px"> stop </button>
+		</div>
+		<div id="meta-wrapper">
 
-	<button onclick = "deselectPaint(); forwardOneStep()" style = "width:90px"> +1 frame </button>
-	<button onclick = "deselectPaint(); continuousPlay(500)" style = "width:90px"> go slow </button>
-	<button onclick = "deselectPaint(); continuousPlay(100)" style = "width:90px"> go med </button>
-	<button onclick = "deselectPaint(); continuousPlay(20)" style = "width:90px"> go fast </button>
-	<button onclick = "deselectPaint(); continuousPlay(0)" style = "width:90px"> go fastest </button>
-	<button onclick = "stopContinuousPlay()" style = "width:90px"> stop </button>
+			<div id="frame-info">
+				<label for="frameCount">frame:</label>
+				<text id="frameCount"></text>
+				<a id="secrect-link" class="removed"></a>
 
-	<br>
+				<br>
 
-	<label for="frame-input">jump to frame #:</label>
-	<input type="number" id="frame-input" style="width:40px" value=0>
-	<button onclick="goToFrame()">go</button>
+				<label for="frame-input">to frame #:</label>
+				<input type="number" id="frame-input" style="width:40px" value=0>
+				<button onclick="goToFrame()">go</button>
 
-	<br>
-	<br>
+				<p id="loopFound" class="removed"> no loop yet you sneaky html viewer </p>
+				<p id="timeTillLoop" class="removed"> get outta here! </p>
 
-	<div id="paint-options">
-		<box id="color-container"></box>
-		<label for = "brush-size-input" style="vertical-align: sub;">brush size:</label>
-		<input value=3 type="number" id="brush-size-input" onchange="changeBrushSize()" min=1 style="width:34px; vertical-align: sub;">
-		<button id="copyBrushBtn" onclick="selectPaint('copy', this)" style="vertical-align: sub;">copy brush</button>
-		<button id="pasteBrushBtn" onclick="selectPaint('paste', this)" class="removed" style="vertical-align: sub;">paste brush</button>
-		<br>
-		<label for="brush-wrap-checkbox" style="vertical-align: sub;">brush wrap</label>
-		<input type="checkbox" id="brush-wrap-checkbox" checked=true style="vertical-align: sub;">
-		<label for = "brush-size-input-x" style="vertical-align: sub;">brush x:</label>
-		<input value=3 type="number" id="brush-size-input-x" onchange="changeBrushSize('x')" min=1 style="width:34px; vertical-align: sub;">
-		<label for = "brush-size-input-y" style="vertical-align: sub;">brush y:</label>
-		<input value=3 type="number" id="brush-size-input-y" onchange="changeBrushSize('y')" min=1 style="width:34px; vertical-align: sub;">
-		<br>
-		<button onclick="rotateGrid()">↻</button>
-		<button onclick="reflectGrid()">⇄</button>
-		<button onclick="translateGrid(-1,0)">🡠</button>
-		<button onclick="translateGrid(1,0)">🡢</button>
-		<button onclick="translateGrid(0,-1)">🡡</button>
-		<button onclick="translateGrid(0,1)">🡣</button>
-		<button onclick="colorRotateGrid()">rotate colors</button>
+				<button id="download-button" onclick="downloadImage()">download image</button>
+			</div>
 
-		<br>
-		<wrapper id="clipboard-wrapper" class="removed">
-			<br>
-			<label for="clipboard-canvas" style="vertical-align: top;">clipboard:</label>
-			<canvas id="clipboard-canvas" style="border:1px solid #000000;"></canvas>
-		</wrapper>
-		<br>
-		<input type="text" id="clipboard-input">
-		<button onclick="importClipboard()">load clipboard from string</button>
-		<br>
-		<wrapper id="clipboard-button-wrapper" class="removed">
-			<button onclick="rotateGrid(true)">↻</button>
-			<button onclick="reflectGrid(true)">⇄</button>
-			<button onclick="translateGrid(-1,0, true)">🡠</button>
-			<button onclick="translateGrid(1,0, true)">🡢</button>
-			<button onclick="translateGrid(0,-1, true)">🡡</button>
-			<button onclick="translateGrid(0,1, true)">🡣</button>
-			<button onclick="colorRotateGrid(true)">rotate colors</button>
-	</wrapper>
+			<div id="paint-options" class="section">
+				<box id="color-container"></box>
+				<label for = "brush-size-input" style="vertical-align: sub;">brush size:</label>
+				<input value=3 type="number" id="brush-size-input" onchange="changeBrushSize()" min=1 style="width:40px; vertical-align: sub;">
+				<button id="copyBrushBtn" onclick="selectPaint('copy', this)" style="vertical-align: sub;">copy brush</button>
+				<button id="pasteBrushBtn" onclick="selectPaint('paste', this)" class="removed" style="vertical-align: sub;">paste brush</button>
+				<br>
+				<label for="brush-wrap-checkbox" style="vertical-align: sub;">brush wrap</label>
+				<input type="checkbox" id="brush-wrap-checkbox" checked=true style="vertical-align: sub;">
+				<label for = "brush-size-input-x" style="vertical-align: sub;">&nbsp;&nbsp; brush x:</label>
+				<input value=3 type="number" id="brush-size-input-x" onchange="changeBrushSize('x')" min=1 style="width:40px; vertical-align: sub;">
+				<label for = "brush-size-input-y" style="vertical-align: sub;">brush y:</label>
+				<input value=3 type="number" id="brush-size-input-y" onchange="changeBrushSize('y')" min=1 style="width:40px; vertical-align: sub;">
+				<wrapper id="symmetry-box">
+					<label>symmetry preserving whole grid transformations:</label>
+					<br>
+					<button onclick="rotateGrid()">↻</button>
+					<button onclick="reflectGrid()">⇄</button>
+					<button onclick="translateGrid(-1,0)">🡠</button>
+					<button onclick="translateGrid(1,0)">🡢</button>
+					<button onclick="translateGrid(0,-1)">🡡</button>
+					<button onclick="translateGrid(0,1)">🡣</button>
+					<button onclick="colorRotateGrid()">cycle colors</button>
+				</wrapper>
 
-	</div>
+				<br>
+				<wrapper id="clipboard-wrapper" class="removed">
+					<br>
+					<label for="clipboard-canvas" style="vertical-align: top;">clipboard:</label>
+					<canvas id="clipboard-canvas" style="border:1px solid #000000;"></canvas>
+				</wrapper>
+				<br>
+				<input type="text" id="clipboard-input">
+				<button onclick="importClipboard()">load clipboard from string</button>
+				<br>
+				<wrapper id="clipboard-button-wrapper" class="removed">
+					<button onclick="rotateGrid(true)">↻</button>
+					<button onclick="reflectGrid(true)">⇄</button>
+					<button onclick="translateGrid(-1,0, true)">🡠</button>
+					<button onclick="translateGrid(1,0, true)">🡢</button>
+					<button onclick="translateGrid(0,-1, true)">🡡</button>
+					<button onclick="translateGrid(0,1, true)">🡣</button>
+					<button onclick="colorRotateGrid(true)">cycle colors</button>
+				</wrapper>
+			</div>
 
-	<br>
 
-	<button onclick = "makeCurrentGridRandom()" style = "width:100px"> new random </button>
+			<div id="grid-set-up-box" class="section">
+				<button onclick = "makeCurrentGridRandom()" style = "width:100px"> new random </button>
+				<br>
+				<label for = "customLevelInput">input grid: </label>
+				<input type = "text" id = "customLevelInput">
+				<button id = "getCustomLevel", onclick = "getCustomLevel()"> get </button>
+				<button id = "setCustomLevel", onclick = "setCustomLevel()"> set </button>
+				<br>
+				<label for = "grid-link">grid link: </label>
+				<input type = "text" id = "grid-link">
+				<button onclick="getGridLink()">get</button>
+			</div>
 
-	<br>
-	<br>
 
-	<label for = "customLevelInput">input grid: </label>
-	<input type = "text" id = "customLevelInput">
-	<button id = "getCustomLevel", onclick = "getCustomLevel()"> get </button>
-	<button id = "setCustomLevel", onclick = "setCustomLevel()"> set </button>
-	<br>
-	<label for = "grid-link">grid link: </label>
-	<input type = "text" id = "grid-link">
-	<button onclick="getGridLink()">get</button>
+			<div id="board-set-up-box" class="section">
+				<label for="x-input">board width</label>
+				<input type="number" id="x-input" style="width:40px">
+				<label for="y-input">board height</label>
+				<input type="number" id="y-input" style="width:40px">
+				<button onclick="changeBoardDimensions()">set board dimensions</button>
+				<br>
+				<label for="colors-input"># of colors</label>
+				<input type="number" id="colors-input" style="width:34px" min="2" max="7" value="3">
+				<button onclick="setNumberOfColors()">set colors</button>
+				<br>
+				<label for="threshold-input">flip threshold</label>
+				<input type="number" id="threshold-input" style="width:34px" min="1" max="8" value="3">
+				<label for="limit-input">flip limit</label>
+				<input type="number" id="limit-input" style="width:34px" min="1" max="8" value="8">
+				<button onclick="setFlipConditions()">set flip conditions</button>
+			</div>
 
-	<br>
-	<br>
 
-	<label for="x-input">board width</label>
-	<input type="number" id="x-input" style="width:36px">
-	<label for="y-input">board height</label>
-	<input type="number" id="y-input" style="width:36px">
-	<button onclick="changeBoardDimensions()">set board dimensions</button>
+			<div id="vort-box" class="section removed">
+				<button id="displayVortsButton" onclick = "toggleDisplayVorts()" style = "width:100px"> hide vorts </button>
+				<button id="displayVortLocsButton" onclick = "toggleDisplayVortLocs()" style = "width:130px"> show vort coords </button>
+				<button id="displayVortPathButton" onclick = "toggleDisplayVortPath()" style = "width:120px"> show vort path </button>
+				<br>
+				<text id="vortNum"># vortices: 10</text>
+				<br>
+				<text id="vortLocs" class="removed"></text>
+				<br>
+				<input type = "number" id = "vortGraphFrame" style = "width:45px">
+				<button onclick = "getVortexGraph()"> get vortex graph </button>
+			</div>
 
-	<p id = "loopFound" class="removed"> no loop yet you sneaky html viewer </p>
-	<p id = "timeTillLoop" class="removed"> get outta here! </p>
 
-	<br>
-	<br>
+			<div id="bulk-options-box" class="section">
+				<label for="">get stats for</label>
+				<input type="number" id="bulk-input" style="width:54px" value=100 step=10>
+				<label>random grids with current settings</label>
+				<button onclick="bulkRunner()">run</button>
+			</div>
+		</div>
 
-	<button id="displayVortsButton" onclick = "toggleDisplayVorts()" style = "width:100px"> hide vorts </button>
-	<button id="displayVortLocsButton" onclick = "toggleDisplayVortLocs()" style = "width:130px"> show vort coords </button>
-	<button id="displayVortPathButton" onclick = "toggleDisplayVortPath()" style = "width:120px"> show vort path </button>
-
-	<p id="vortNum"># vortices: 10</p>
-	<p id="vortLocs" class="removed"></p>
-
-	<input type = "number" id = "vortGraphFrame" style = "width:45px">
-	<button onclick = "getVortexGraph()"> get vortex graph </button>
-	<br>
-	<br>
-
-	<label for="">get stats for</label>
-	<input type="number" id="bulk-input" style="width:50px" value=100 step=10>
-	<label>random grids with current settings</label>
-	<button onclick="bulkRunner()">run</button>
 	</wrapper>
 
   <script src = "rps.js"></script>

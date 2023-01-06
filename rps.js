@@ -50,6 +50,17 @@ var displayOrRemoveElements = function (display, elemList) {
     }
   }
 }
+var destroyElement = function (elem) {
+  if (elem && elem.parentNode) {
+    elem.parentNode.removeChild(elem);
+  }
+}
+var destroyAllChildrenOfElement = function (elem) {
+  var children = elem.childNodes;
+  while (children.length !== 0) {
+    destroyElement(children[0]);
+  }
+}
 
 var mod = function (a, n) {
   var r = a+n;
@@ -178,8 +189,11 @@ var refreshClipboardDisplay = function () {
 
   $('clipboard-input').value = JSON.stringify(clipboard);
   //
-  $('clipboard-canvas').width = ($('main-canvas').getBoundingClientRect().width / xSize) * clipboard.length
-  $('clipboard-canvas').height = ($('main-canvas').getBoundingClientRect().height / ySize)* clipboard[0].length;
+  if (true) {
+
+  }
+  $('clipboard-canvas').width = Math.min(($('main-canvas').getBoundingClientRect().width / xSize) * clipboard.length, 420);
+  $('clipboard-canvas').height = Math.min(($('main-canvas').getBoundingClientRect().height / ySize)* clipboard[0].length, 420);
   drawGrid($('clipboard-canvas'), clipboard, getVortsAndString(clipboard).vorts, true);
 }
 
@@ -223,6 +237,7 @@ var deselectPaint = function () {
   $('pasteBrushBtn').classList.remove('selected');
 }
 var setPaintContainer = function () {
+  destroyAllChildrenOfElement($("color-container"));
   for (var i = 0; i < colours[colors].length; i++) {
     var colorButton = document.createElement("button");
     colorButton.setAttribute('class', 'color-button');
@@ -666,6 +681,7 @@ var initGame = function (grid, nonVisual) {
     clearVortPaths();
     $('x-input').value = xSize;
     $('y-input').value = ySize;
+    $('colors-input').value = colors;
     removeElements("loopFound", "timeTillLoop");
   }
 }
@@ -757,7 +773,36 @@ var changeBoardDimensions = function () {
     makeCurrentGridRandom();
   }
 }
+var setNumberOfColors = function () {
+  var colorNum = Number($('colors-input').value);
+  if (!Number.isInteger(colorNum) || colorNum < 2 || colorNum > 7) {
+    alert("no!")
+  } else {
+    colors = colorNum;
+    makeCurrentGridRandom();
+    setPaintContainer();
+    setVortBox();
+  }
+}
+var setFlipConditions = function () {
+  var thresh = Number($('threshold-input').value);
+  var lim = Number($('limit-input').value);
+  if (!Number.isInteger(thresh) || thresh < 1 || !Number.isInteger(lim) || lim < 1) {
+    alert("no!")
+  } else {
+    flipThreshold = thresh;
+    flipLimit = lim;
+    initGame(currentGame.frames[currentGame.currentFrame]);
+  }
+}
 
+var setVortBox = function () {
+  if (colors === 3) {
+    displayElements('vort-box');
+  } else {
+    removeElements('vort-box');
+  }
+}
 
 var bulkRunner = function (quota, arr, stats, timeOfLastBreath) {
   if (quota === undefined) {        // init
@@ -959,7 +1004,6 @@ var loadFromAddressBarOnPageLoad = function () {
     if (flipT && Number.isInteger(flipT) && flipT >= 0) {flipThreshold = flipT;}
     if (flipL && Number.isInteger(flipL) && flipL >= 0) {flipLimit = flipL;}
 
-
     if (gridString) {
 
       var expandedGridString = deCompressString(gridString, colors);
@@ -983,6 +1027,7 @@ var loadFromAddressBarOnPageLoad = function () {
 // init on page load
 loadFromAddressBarOnPageLoad();
 setPaintContainer();
+setVortBox();
 
 var downloadImage = function () {
   $('secret-canvas').getContext('2d').drawImage($('main-canvas'), 0,0);
