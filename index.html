@@ -59,13 +59,17 @@
 		margin: 3px;
 		padding: 3px;
 	}
+	#bulk-report { margin: 10px; }
 	.removed {display: none;}
 </style>
 </head>
 <body style="text-align:center" onmouseup="stopPaint()">
 
-	<p id="bulk-heading" class="removed"></p>
-	<p id="bulk-status" class="removed"></p>
+	<div id="bulk-report" class="removed">
+		<p id="bulk-heading" class="removed"></p>
+		<p id="bulk-status" class="removed"></p>
+		<button id="bulk-dismiss" onclick="removeElements('bulk-report')" class="removed">dismiss</button>
+	</div>
 
 	<wrapper class="not-bulk" id="not-bulk">
 
