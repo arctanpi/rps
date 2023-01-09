@@ -351,15 +351,17 @@ var colorRotateGrid = function (isClipboard) {
 }
 
 var getVortsAndString = function (grid) {
-  // returns both crunched grid data down to a string like 0120210, and an array of vortices
+  // returns both grid data crunched down to a string like 0120210, and an array of vortices
   var gridStr = "";
   var vorts = [];
 
   for (var i = 0; i < grid.length; i++){
     for (var j = 0; j < grid[i].length; j++) {
       gridStr += grid[i][j]
-      if (isVort(grid,i,j)) {
-        vorts.push([i,j])
+      if (colors === 3 || colors === 4) {
+        if (isVort(grid,i,j)) {
+          vorts.push([i,j])
+        }
       }
     }
   }
@@ -367,26 +369,36 @@ var getVortsAndString = function (grid) {
 }
 
 var isVort = function (grid,x,y) {
-  var neb = vortNb(x,y, grid.length, grid[0].length)
-  var vort = []
-  for (var i = 0; i < neb.length; i++) {
-    vort.push(grid[neb[i][0]][neb[i][1]]);
+  var ref = {};
+  for (var i = 0; i < colors; i++) {
+    ref[i] = false;
   }
-  if (vort.includes(0) && vort.includes(1) && vort.includes(2)) {
-    return true
+
+  var adjValues = vortNb(grid, x, y, grid.length, grid[0].length);
+  for (var i = 0; i < adjValues.length; i++) {
+    ref[adjValues[i]] = true;
   }
-  return false
+
+  var isVortex = true;
+  for (var i = 0; i < colors; i++) {
+    if (ref[i] === false) {
+      isVortex = false;
+      break;
+    }
+  }
+
+  return isVortex;
 }
 
-var vortNb = function (x,y,xMax,yMax) {      // outputs the cells required for tracking vortices
-  return [ [mod(x-1, xMax), mod(y-1, yMax)],
-           [mod(x, xMax), mod(y-1, yMax)],
-           [mod(x-1, xMax), mod(y, yMax)],
-           [mod(x, xMax), mod(y, yMax)]
+var vortNb = function (grid, x,y,xMax,yMax) {      // returns values of cells around potential vortex
+  return [ grid[mod(x-1, xMax)][mod(y-1, yMax)],
+           grid[mod(x, xMax)][mod(y-1, yMax)],
+           grid[mod(x-1, xMax)][mod(y, yMax)],
+           grid[mod(x, xMax)][mod(y, yMax)]
          ]
 }
 
-var nextGrid = function (grid){
+var nextGrid = function (grid) {
   var new_grid = [];
 
   for (var i = 0; i < grid.length; i++){
@@ -400,19 +412,18 @@ var nextGrid = function (grid){
   return new_grid
 }
 
-var updateCell = function (grid,i,j){
+var updateCell = function (grid,i,j) {
   // updates cells according to the rule:
   // let n be the color state of a cell
   // let x be the number of neighbours of color n+1 a cell has
   // a cell of n flips to n+1 iff 'flipThreshold' >= x >= flipLimit
 
-  var adj = getArea({x:i, y:j}, 3, 3, true, true);
+  var neighbours = getArea({x:i, y:j}, 3, 3, true, true);
   var val = grid[i][j];
   var val_enemy = mod(val+1, colors);
   var count = 0;
   for (var i = 0; i < 8; i++) {
-    var ac = adj[i]
-    if (grid[ac[0]][ac[1]] == val_enemy) {
+    if (grid[neighbours[i][0]][neighbours[i][1]] === val_enemy) {
       count += 1;
     }
   }
@@ -545,9 +556,9 @@ var toggleDisplayVorts = function () {
   }
 
   if (displayVorts) {
-    displayVortsButton.innerHTML = "hide vorts"
+    displayVortsButton.innerHTML = "hide vorts";
   } else {
-    displayVortsButton.innerHTML = "show vorts"
+    displayVortsButton.innerHTML = "show vorts";
   }
 }
 
@@ -681,6 +692,8 @@ var initGame = function (grid, nonVisual) {
     clearVortPaths();
     $('x-input').value = xSize;
     $('y-input').value = ySize;
+    $('threshold-input').value = flipThreshold;
+    $('limit-input').value = flipLimit;
     $('colors-input').value = colors;
     removeElements("loopFound", "timeTillLoop");
   }
@@ -797,10 +810,12 @@ var setFlipConditions = function () {
 }
 
 var setVortBox = function () {
-  if (colors === 3) {
+  if (colors === 3 || colors === 4) {
     displayElements('vort-box');
+    displayVorts = true;
   } else {
     removeElements('vort-box');
+    displayVorts = false;
   }
 }
 
@@ -819,8 +834,8 @@ var bulkRunner = function (quota, arr, stats, timeOfLastBreath) {
     timeOfLastBreath -= 201;  // to force a breath on the first go through
     $('bulk-heading').innerHTML = "<br><br>PROCESSING "+quota+" RANDOM "+xSize+"x"+ySize+" GRIDS<br>";
     $('bulk-status').innerHTML = "** running game #1 **"
-    displayElements('bulk-heading', 'bulk-status');
-    removeElements('not-bulk');
+    displayElements('bulk-report','bulk-heading', 'bulk-status');
+    removeElements('not-bulk', 'bulk-dismiss');
   }
 
   if (quota === 0) {               // done
@@ -828,15 +843,18 @@ var bulkRunner = function (quota, arr, stats, timeOfLastBreath) {
     var secs = (Math.floor(now - stats.startTime))/1000;
     var secs = arr.length + " " + xSize+"x"+ySize+" games were run in " +secs+" seconds";
     //
-    var dnf = "did not finish games: "+stats.didNotFinish;
+    var dnf = "";
+    if (stats.didNotFinish.length) {
+      dnf = "did not finish games: "+stats.didNotFinish+"<br>";
+    }
     var avgs = "mean ticks til loop: "+((Math.round((stats.totalTicksTilLoop/arr.length)*100))/100)+"<br>"
     avgs += "mean loop length: "+((Math.round((stats.totalLoopLength/arr.length)*100))/100)+"<br>"
     avgs += "mean final vortex count: "+((Math.round((stats.totalFinalVortexCount/arr.length)*100))/100)+"<br>"
     //
-    $('bulk-status').innerHTML = "**DING**<br>"+secs+"<br>"+dnf+"<br>"+avgs+"open your console for more";
+    $('bulk-status').innerHTML = "**DING**<br>"+secs+"<br>"+dnf+avgs+"open your console for more";
     console.log(arr);
     removeElements('bulk-heading');
-    displayElements('not-bulk');
+    displayElements('not-bulk', 'bulk-dismiss');
     if (document.hidden) {
       alert("dinner's ready!");
     }
