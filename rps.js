@@ -835,7 +835,7 @@ var bulkRunner = function (quota, arr, stats, timeOfLastBreath) {
     $('bulk-heading').innerHTML = "<br><br>PROCESSING "+quota+" RANDOM "+xSize+"x"+ySize+" GRIDS<br>";
     $('bulk-status').innerHTML = "** running game #1 **"
     displayElements('bulk-report','bulk-heading', 'bulk-status');
-    removeElements('not-bulk', 'bulk-dismiss');
+    removeElements('not-bulk', 'bulk-dismiss', 'bulk-actions');
   }
 
   if (quota === 0) {               // done
@@ -851,10 +851,12 @@ var bulkRunner = function (quota, arr, stats, timeOfLastBreath) {
     avgs += "mean loop length: "+((Math.round((stats.totalLoopLength/arr.length)*100))/100)+"<br>"
     avgs += "mean final vortex count: "+((Math.round((stats.totalFinalVortexCount/arr.length)*100))/100)+"<br>"
     //
-    $('bulk-status').innerHTML = "**DING**<br>"+secs+"<br>"+dnf+avgs+"open your console for more";
-    console.log(arr);
+    $('downloadButton').onclick = function () { downloadJson(arr); }
+    $('toConsoleButton').onclick = function () { console.log(arr); }
+
+    $('bulk-status').innerHTML = "**DING**<br>"+secs+"<br>"+dnf+avgs;
     removeElements('bulk-heading');
-    displayElements('not-bulk', 'bulk-dismiss');
+    displayElements('not-bulk', 'bulk-dismiss', 'bulk-actions');
     if (document.hidden) {
       alert("dinner's ready!");
     }
@@ -1047,17 +1049,34 @@ loadFromAddressBarOnPageLoad();
 setPaintContainer();
 setVortBox();
 
-var downloadImage = function () {
-  $('secret-canvas').getContext('2d').drawImage($('main-canvas'), 0,0);
-  $('secret-canvas').getContext('2d').drawImage($('vortex-canvas'), 0,0);
+var downloadJson = function (dataObject) {
+  var dataString = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dataObject));
   //
   var date = new Date();
   var date = date.getFullYear() +"-"+ date.getMonth()+1 +"-"+ date.getDate() +"-"+ date.getHours() +":"+ date.getMinutes() +":"+ date.getSeconds();
-  $('secrect-link').download = "rps-" + date;
+  var filename = "rps-data-" + date+".json";
   //
-  var dataURL = $('secret-canvas').toDataURL();
-  $('secrect-link').href = dataURL;
-  $('secrect-link').click();
+  downloadFile(filename, dataString);
+}
+var downloadImageOfCurrentBoard = function () {
+  var date = new Date();
+  var date = date.getFullYear() +"-"+ date.getMonth()+1 +"-"+ date.getDate() +"-"+ date.getHours() +":"+ date.getMinutes() +":"+ date.getSeconds();
+  var filename = "rps-" + date;
+  //
+  $('secret-canvas').getContext('2d').drawImage($('main-canvas'), 0,0);
+  $('secret-canvas').getContext('2d').drawImage($('vortex-canvas'), 0,0);
+  var data = $('secret-canvas').toDataURL();
+  //
+  downloadFile(filename, data);
+}
+var downloadFile = function (filename, data) {
+  var tempLink = document.createElement("a");
+  tempLink.download = filename;
+  //
+  tempLink.href = data;
+  tempLink.click();
+  //
+  destroyElement(tempLink);
 }
 
 
