@@ -60,6 +60,20 @@
 		padding: 3px;
 	}
 	#bulk-report { margin: 10px; }
+	.text-button {
+		border: none;
+		margin: 0;
+		padding: 0;
+		font-size: inherit;
+		font-family: inherit;
+		background-color: #ffffff00;
+		max-width: 100%;
+		text-align: inherit;
+		font-style: inherit;
+		font-weight: inherit;
+		text-decoration: inherit;
+		color: blue;
+	}
 	.removed {display: none;}
 </style>
 </head>
@@ -68,8 +82,11 @@
 	<div id="bulk-report" class="removed">
 		<p id="bulk-heading" class="removed"></p>
 		<p id="bulk-status" class="removed"></p>
+
+		<p id="bulk-actions" class="removed">for more data you can download as <button id="downloadJsonButton" class="text-button">json</button> or <button id="downloadCsvButton" class="text-button">csv</button>, or <button id="toConsoleButton" class="text-button">print to console</button></p>
 		<button id="bulk-dismiss" onclick="removeElements('bulk-report')" class="removed">dismiss</button>
 	</div>
+
 
 	<wrapper class="not-bulk" id="not-bulk">
 
@@ -93,18 +110,17 @@
 			<div id="frame-info">
 				<label for="frameCount">frame:</label>
 				<text id="frameCount"></text>
-				<a id="secrect-link" class="removed"></a>
 
 				<br>
 
 				<label for="frame-input">to frame #:</label>
-				<input type="number" id="frame-input" style="width:40px" value=0>
+				<input type="number" id="frame-input" style="width:54px" value=0>
 				<button onclick="goToFrame()">go</button>
 
 				<p id="loopFound" class="removed"> no loop yet you sneaky html viewer </p>
 				<p id="timeTillLoop" class="removed"> get outta here! </p>
 
-				<button id="download-button" onclick="downloadImage()">download image</button>
+				<button id="download-button" onclick="downloadImageOfCurrentBoard()">download image</button>
 			</div>
 
 			<div id="paint-options" class="section">
@@ -164,7 +180,7 @@
 				<br>
 				<label for = "grid-link">grid link: </label>
 				<input type = "text" id = "grid-link">
-				<button onclick="getGridLink()">get</button>
+				<button onclick="showGridLink()">get</button>
 			</div>
 
 
@@ -179,11 +195,20 @@
 				<input type="number" id="colors-input" style="width:34px" min="2" max="7" value="3">
 				<button onclick="setNumberOfColors()">set colors</button>
 				<br>
+				<label for="wrap-style-select">wrap style:</label>
+				<select id="wrap-style-select" onchange="setWrapSetting()">
+					<option>torus</option>
+					<option>sphere</option>
+					<option>projective plane</option>
+					<option>klein bottle</option>
+					<option>cylinder</option>
+					<option>none</option>
+				</select>
+				<br>
 				<label for="threshold-input">flip threshold</label>
-				<input type="number" id="threshold-input" style="width:34px" min="1" max="8" value="3">
+				<input type="number" id="threshold-input" onchange="setFlipConditions()" style="width:34px" min="1" max="8" value="3">
 				<label for="limit-input">flip limit</label>
-				<input type="number" id="limit-input" style="width:34px" min="1" max="8" value="8">
-				<button onclick="setFlipConditions()">set flip conditions</button>
+				<input type="number" id="limit-input" onchange="setFlipConditions()" style="width:34px" min="1" max="8" value="8">
 			</div>
 
 
