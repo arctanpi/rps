@@ -21,6 +21,7 @@ var paintDown = false;
 var brushColor = false;
 var brushSize;
 var clipboard = false;
+var wrapSetting = 'torus';
 
 
 var $ = function (x) {return document.getElementById(x);}
@@ -70,37 +71,103 @@ var mod = function (a, n) {
     return r % n;
   }
 }
-var getCoords = function (e) {  // from mouse position over canvas
-  var rect = e.target.getBoundingClientRect();
-  var xCoord = Math.floor((e.clientX - rect.left) / (rect.width / xSize));
-  var yCoord = Math.floor((e.clientY - rect.top) / (rect.height / ySize));
-  return {x:xCoord, y:yCoord};
+var modCoords = function (x,y, wrapStyle) {
+  if (!wrapStyle) { wrapStyle = wrapSetting; }
+  //
+  if (wrapStyle === 'none') {
+    if (y >= 0 && y < ySize && x >= 0 && x < xSize ) {
+      return [x,y];
+    } else {
+      return false;
+    }
+  }
+  //
+  if (wrapStyle === 'torus') {
+    x = mod(x,xSize);
+    y = mod(y,ySize);
+    return [x,y];
+  }
+  //
+  if (wrapStyle === 'cylinder') {
+    if (y !== mod(y,ySize)) {
+      return false;
+    }
+    x = mod(x,xSize);
+    return [x,y];
+  }
+  //
+  if (wrapStyle === 'sphere') {
+    if (y !== mod(y,ySize) || x !== mod(x,xSize)) {
+      if (y < 0) {
+        y = Math.abs(y+1);
+      }
+      if (x < 0) {
+        x = Math.abs(x+1);
+      }
+      if (x >= xSize) {
+        x = 2*xSize -x -1;
+      }
+      if (y >= ySize) {
+        y = 2*ySize -y -1;
+      }
+      return [y,x];
+    }
+    return [x,y];
+  }
+  //
+  if (wrapStyle === 'projective plane') {
+    if (x !== mod(x,xSize)) {
+      x = mod(x,xSize);
+      y = (ySize-1) - y;
+    }
+    if (y !== mod(y,ySize)) {
+      y = mod(y,ySize);
+      x = mod((xSize-1) - x, xSize);
+    }
+    return [x,y];
+  }
+  //
+  if (wrapStyle === 'klein bottle') {
+    if (x !== mod(x,xSize)) {
+      x = mod(x,xSize);
+      y = (ySize-1) - y;
+    }
+    y = mod(y,ySize);
+    return [x,y];
+  }
 }
-var getArea = function (centerCoords, width, height, wrap, excludeCenter) {
+
+var getNeighborhood = function (centerCoords, width, height, wrap, excludeCenter) {
   var arr = [];
   for (var i = 0; i < width; i++) {
     var x = (centerCoords.x - Math.floor((width-1)/2)) + i;
-    if (wrap) {x = mod(x,xSize);}
-    if (x >= 0 && x < xSize) {
-      for (var j = 0; j < height; j++) {
-        var y = (centerCoords.y - Math.floor((height-1)/2)) + j;
-        if (wrap) {y = mod(y,ySize);}
-        if (y >= 0 && y < ySize) {
-          if (!excludeCenter || (centerCoords.x !== x || centerCoords.y !== y)) {
-            arr.push([x,y]);
-          }
-        }
+    for (var j = 0; j < height; j++) {
+      var y = (centerCoords.y - Math.floor((height-1)/2)) + j;
+
+      var wrapStyle;
+      if (!wrap) { wrapStyle = 'none'; }
+      var newCoords = modCoords(x,y,wrapStyle);
+
+      if (newCoords && (!excludeCenter || (centerCoords.x !== x || centerCoords.y !== y))) {
+        arr.push(newCoords);
       }
     }
   }
   return arr;
 }
 
+var getCoords = function (e) {  // from mouse position over canvas
+  var rect = e.target.getBoundingClientRect();
+  var xCoord = Math.floor((e.clientX - rect.left) / (rect.width / xSize));
+  var yCoord = Math.floor((e.clientY - rect.top) / (rect.height / ySize));
+  return {x:xCoord, y:yCoord};
+}
+
 var startPaint = function (e) {
   if (brushColor === false) {return;}
   //
   var coords = getCoords(e);
-  var area = getArea(coords, brushSize[0], brushSize[1], $('brush-wrap-checkbox').checked);
+  var area = getNeighborhood(coords, brushSize[0], brushSize[1], $('brush-wrap-checkbox').checked);
   if (brushColor === "copy") {
     //
     var i = 0;
@@ -132,12 +199,12 @@ var mouseMove = function (e, cnvsElm) {
     var coords = getCoords(e);
     if (coords.x !== paintDown.x || coords.y !== paintDown.y) {
       paintDown = coords;
-      applyPaint(getArea(coords, brushSize[0], brushSize[1], $('brush-wrap-checkbox').checked), brushColor);
+      applyPaint(getNeighborhood(coords, brushSize[0], brushSize[1], $('brush-wrap-checkbox').checked), brushColor);
     }
   } else if (brushColor !== false) {
     ctx.clearRect(0, 0, cnvsElm.width, cnvsElm.height);
     //
-    var hoveredUpon = getArea(getCoords(e), brushSize[0], brushSize[1], $('brush-wrap-checkbox').checked);
+    var hoveredUpon = getNeighborhood(getCoords(e), brushSize[0], brushSize[1], $('brush-wrap-checkbox').checked);
 
     var xUnit = cnvsElm.width / xSize;
     var yUnit = cnvsElm.height / ySize;
@@ -168,11 +235,12 @@ var applyPaint = function (coordList, color) {
       ref[coordList[i]] = true;
     }
     for (var i = 0; i < clipboard.length; i++) {
-      var x = mod(coordList[0][0]+i, xSize);
+      var x = coordList[0][0]+i;
       for (var j = 0; j < clipboard[i].length; j++) {
-        var y = mod(coordList[0][1]+j, ySize);
-        if (ref[x+","+y]) {
-          grid[x][y] = clipboard[i][j];
+        var y = coordList[0][1]+j;
+        var coords = modCoords(x,y);
+        if (coords && ref[coords]) {
+          grid[coords[0]][coords[1]] = clipboard[i][j];
         }
       }
     }
@@ -315,7 +383,8 @@ var translateGrid = function (delX, delY, isClipboard) {
 
   for (var i = 0; i < oldG.length; i++) {
     for (var j = 0; j < oldG[i].length; j++) {
-      newG[mod(i+delX, oldG.length)][mod(j+delY, oldG[i].length)] = oldG[i][j];
+      var newCoords = modCoords(i+delX, j+delY);
+      newG[newCoords[0]][newCoords[1]] = oldG[i][j];
     }
   }
 
@@ -371,7 +440,7 @@ var isVort = function (grid,x,y) {
     ref[i] = false;
   }
 
-  var adjValues = vortNb(grid, x, y, grid.length, grid[0].length);
+  var adjValues = vortNb(grid, x, y);
   for (var i = 0; i < adjValues.length; i++) {
     ref[adjValues[i]] = true;
   }
@@ -387,12 +456,18 @@ var isVort = function (grid,x,y) {
   return isVortex;
 }
 
-var vortNb = function (grid, x,y,xMax,yMax) {      // returns values of cells around potential vortex
-  return [ grid[mod(x-1, xMax)][mod(y-1, yMax)],
-           grid[mod(x, xMax)][mod(y-1, yMax)],
-           grid[mod(x-1, xMax)][mod(y, yMax)],
-           grid[mod(x, xMax)][mod(y, yMax)]
-         ]
+var vortNb = function (grid, x, y) {      // returns values of cells around potential vortex
+  var arr = [];
+  arr.push(modCoords(x-1, y-1));
+  arr.push(modCoords(x, y-1));
+  arr.push(modCoords(x-1, y));
+  arr.push(modCoords(x, y));
+  for (var i = 0; i < arr.length; i++) {
+    if (arr[i]) {
+      arr[i] = grid[arr[i][0]][arr[i][1]];
+    }
+  }
+  return arr;
 }
 
 var nextGrid = function (grid) {
@@ -415,11 +490,11 @@ var updateCell = function (grid,i,j) {
   // let x be the number of neighbours of color n+1 a cell has
   // a cell of n flips to n+1 iff 'flipThreshold' >= x >= flipLimit
 
-  var neighbours = getArea({x:i, y:j}, 3, 3, true, true);
+  var neighbours = getNeighborhood({x:i, y:j}, 3, 3, true, true);
   var val = grid[i][j];
   var val_enemy = mod(val+1, colors);
   var count = 0;
-  for (var i = 0; i < 8; i++) {
+  for (var i = 0; i < neighbours.length; i++) {
     if (grid[neighbours[i][0]][neighbours[i][1]] === val_enemy) {
       count += 1;
     }
@@ -483,7 +558,7 @@ var drawGrid = function (cnvsElm, grid, vorts, isClipBoardCanvas) {
         for (var i = 0; i < vorts.length; i++) {
           var x0 = vorts[i][0];
           var y0 = vorts[i][1];
-          var areaList = getArea({x:x0, y:y0}, 3, 3, true, true);
+          var areaList = getNeighborhood({x:x0, y:y0}, 3, 3, true, true);
           var ref = {}
           for (var j = 0; j < areaList.length; j++) {
             ref[areaList[j]] = true;
@@ -692,6 +767,7 @@ var initGame = function (grid, nonVisual) {
     $('threshold-input').value = flipThreshold;
     $('limit-input').value = flipLimit;
     $('colors-input').value = colors;
+    $('wrap-style-select').value = wrapSetting;
     removeElements("loopFound", "timeTillLoop");
   }
 }
@@ -811,6 +887,11 @@ var setFlipConditions = function () {
     flipLimit = lim;
     initGame(currentGame.frames[currentGame.currentFrame]);
   }
+}
+var setWrapSetting = function () {
+  var val = $("wrap-style-select").value;
+  wrapSetting = val;
+  initGame(currentGame.frames[currentGame.currentFrame]);
 }
 
 var setVortBox = function () {
@@ -1120,7 +1201,6 @@ var followBoundary = function(nbColors, boundary, prev_dir) {
   var col_to_dir = [ [0,1], [2,3], [0,2], [1,3] ]
   var dirs = [ [0,-1], [0,1], [-1,0], [1,0] ]
 
-  i
   for (var i = 0; i < 4; i++) {
     var t1 = (nbColors[col_to_dir[i][0]] == boundary[0] && nbColors[col_to_dir[i][1]] == boundary[1])
     var t2 = (nbColors[col_to_dir[i][1]] == boundary[0] && nbColors[col_to_dir[i][0]] == boundary[1])
@@ -1204,15 +1284,12 @@ var getVortexGraph = function() {
       // then adds that to the graph
       while (i != -1) {
 
-        var nebs = vortNb(coord_list[i][0],coord_list[i][1],xSize,ySize)
-        var neb_colors = []
-        for (var j = 0; j < nebs.length; j++) {
-          neb_colors.push(currentGame.frames[frame_num][nebs[j][0]][nebs[j][1]]);
-        }
+        var neb_colors = vortNb(currentGame.frames[frame_num], coord_list[i][0], coord_list[i][1]);
+
 
         var direction = followBoundary(neb_colors,boundary,direction)
 
-        coord_list.push([ mod(coord_list[i][0]+direction[0], xSize), mod(coord_list[i][1]+direction[1], ySize)])
+        coord_list.push(modCoords( coord_list[i][0]+direction[0], coord_list[i][1]+direction[1]));
 
         var hops = torusHop(coord_list[i],coord_list[i+1],xSize,ySize)
 
