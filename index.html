@@ -83,9 +83,10 @@
 		<p id="bulk-heading" class="removed"></p>
 		<p id="bulk-status" class="removed"></p>
 
-		<p id="bulk-actions" class="removed">for more data you can <button id="downloadButton" class="text-button">download</button> or <button id="toConsoleButton" class="text-button">print to console</button></p>
+		<p id="bulk-actions" class="removed">for more data you can download as <button id="downloadJsonButton" class="text-button">json</button> or <button id="downloadCsvButton" class="text-button">csv</button>, or <button id="toConsoleButton" class="text-button">print to console</button></p>
 		<button id="bulk-dismiss" onclick="removeElements('bulk-report')" class="removed">dismiss</button>
 	</div>
+
 
 	<wrapper class="not-bulk" id="not-bulk">
 
@@ -179,7 +180,7 @@
 				<br>
 				<label for = "grid-link">grid link: </label>
 				<input type = "text" id = "grid-link">
-				<button onclick="getGridLink()">get</button>
+				<button onclick="showGridLink()">get</button>
 			</div>
 
 

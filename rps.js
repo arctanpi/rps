@@ -189,9 +189,6 @@ var refreshClipboardDisplay = function () {
 
   $('clipboard-input').value = JSON.stringify(clipboard);
   //
-  if (true) {
-
-  }
   $('clipboard-canvas').width = Math.min(($('main-canvas').getBoundingClientRect().width / xSize) * clipboard.length, 420);
   $('clipboard-canvas').height = Math.min(($('main-canvas').getBoundingClientRect().height / ySize)* clipboard[0].length, 420);
   drawGrid($('clipboard-canvas'), clipboard, getVortsAndString(clipboard).vorts, true);
@@ -711,7 +708,7 @@ var exportGridToJsonString = function (grid) {
       }
     }
     if (i != grid.length-1) {
-      str += "], \r\n"
+      str += "], "
     } else {
       str += "]"
     }
@@ -730,9 +727,17 @@ var getCustomLevel = function () {
   selectFullInputContents($('customLevelInput'));
 }
 
-var getGridLink = function () {
+var showGridLink = function () {
   stopContinuousPlay();
-  var grid = currentGame.frames[currentGame.currentFrame];
+  $('grid-link').value = getGridLink();
+  selectFullInputContents($('grid-link'));
+}
+
+var getGridLink = function (frame) {
+  if (frame === undefined) {
+    frame = currentGame.currentFrame;
+  }
+  var grid = currentGame.frames[frame];
   var lowBaseString = grid.flat().join('');
   var highBaseString = compressString(lowBaseString, colors);
 
@@ -741,8 +746,7 @@ var getGridLink = function () {
   if (hashLoc !== -1) {
     url = url.slice(0, url.indexOf('#'));
   }
-  $('grid-link').value = url + "#" + xSize + "x" + ySize + "." + colors + "." + flipThreshold + "." + flipLimit + "." + highBaseString;
-  selectFullInputContents($('grid-link'));
+  return url + "#" + xSize + "x" + ySize + "." + colors + "." + flipThreshold + "." + flipLimit + "." + highBaseString;
 }
 
 var selectFullInputContents = function (elem) {
@@ -851,7 +855,8 @@ var bulkRunner = function (quota, arr, stats, timeOfLastBreath) {
     avgs += "mean loop length: "+((Math.round((stats.totalLoopLength/arr.length)*100))/100)+"<br>"
     avgs += "mean final vortex count: "+((Math.round((stats.totalFinalVortexCount/arr.length)*100))/100)+"<br>"
     //
-    $('downloadButton').onclick = function () { downloadJson(arr); }
+    $('downloadJsonButton').onclick = function () { downloadJson(arr); }
+    $('downloadCsvButton').onclick = function () { downloadCSV(arr); }
     $('toConsoleButton').onclick = function () { console.log(arr); }
 
     $('bulk-status').innerHTML = "**DING**<br>"+secs+"<br>"+dnf+avgs;
@@ -863,7 +868,7 @@ var bulkRunner = function (quota, arr, stats, timeOfLastBreath) {
   } else {                      // keep going
     var now = new Date();
     var timeSinceLastBreath = now - timeOfLastBreath;
-    if (timeSinceLastBreath > 200) {
+    if (timeSinceLastBreath > 200 || quota % 500 === 0) {
       setTimeout(function () {
         runner(quota, arr, stats, now);
       }, 0);
@@ -1049,19 +1054,44 @@ loadFromAddressBarOnPageLoad();
 setPaintContainer();
 setVortBox();
 
+var getDateAndTimeString = function () {
+  var date = new Date();
+  var date = date.getFullYear() +"-"+ date.getMonth()+1 +"-"+ date.getDate() +"-"+ date.getHours() +":"+ date.getMinutes() +":"+ date.getSeconds();
+  return date;
+}
 var downloadJson = function (dataObject) {
   var dataString = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dataObject));
   //
-  var date = new Date();
-  var date = date.getFullYear() +"-"+ date.getMonth()+1 +"-"+ date.getDate() +"-"+ date.getHours() +":"+ date.getMinutes() +":"+ date.getSeconds();
-  var filename = "rps-data-" + date+".json";
+  var filename = "rps-data-" + getDateAndTimeString() +".json";
   //
   downloadFile(filename, dataString);
 }
+var downloadCSV = function (dataObject) {
+  var data = "";
+  var propList = [];
+  for (var prop in dataObject[0]) {
+    if (dataObject[0].hasOwnProperty(prop)) {
+      data += prop + ",";
+      propList.push(prop);
+    }
+  }
+  data += "\n";
+  for (var i = 0; i < dataObject.length; i++) {
+    for (var j = 0; j < propList.length; j++) {
+      if (typeof dataObject[i][propList[j]] !== 'undefined') {
+        data += '"' + dataObject[i][propList[j]] + '", ';
+      }
+    }
+    data += "\n";
+  }
+  data = 'data:text/csv;charset=utf-8,' + encodeURIComponent(data);
+  //
+  var filename = "rps-data-" + getDateAndTimeString() +".csv";
+  //
+  downloadFile(filename, data);
+}
 var downloadImageOfCurrentBoard = function () {
-  var date = new Date();
-  var date = date.getFullYear() +"-"+ date.getMonth()+1 +"-"+ date.getDate() +"-"+ date.getHours() +":"+ date.getMinutes() +":"+ date.getSeconds();
-  var filename = "rps-" + date;
+  var filename = "rps-" + getDateAndTimeString();
   //
   $('secret-canvas').getContext('2d').drawImage($('main-canvas'), 0,0);
   $('secret-canvas').getContext('2d').drawImage($('vortex-canvas'), 0,0);
