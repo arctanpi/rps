@@ -100,7 +100,7 @@
 
 			<button onclick = "deselectPaint(); forwardOneStep()" style = "width:90px"> +1 frame </button>
 			<button onclick = "deselectPaint(); continuousPlay(500)" style = "width:90px"> go slow </button>
-			<button onclick = "deselectPaint(); continuousPlay(100)" style = "width:90px"> go med </button>
+			<button onclick = "deselectPaint(); continuousPlay(100)" style = "width:90px"> go medium </button>
 			<button onclick = "deselectPaint(); continuousPlay(20)" style = "width:90px"> go fast </button>
 			<button onclick = "deselectPaint(); continuousPlay(0)" style = "width:90px"> go fastest </button>
 			<button onclick = "stopContinuousPlay()" style = "width:90px"> stop </button>
@@ -137,7 +137,7 @@
 				<label for = "brush-size-input-y" style="vertical-align: sub;">brush y:</label>
 				<input value=3 type="number" id="brush-size-input-y" onchange="changeBrushSize('y')" min=1 style="width:40px; vertical-align: sub;">
 				<wrapper id="symmetry-box">
-					<label>symmetry preserving whole grid transformations:</label>
+					<label>whole grid transformations:</label>
 					<br>
 					<button onclick="rotateGrid()">↻</button>
 					<button onclick="reflectGrid()">⇄</button>

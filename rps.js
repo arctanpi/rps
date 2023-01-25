@@ -28,7 +28,7 @@ var $ = function (x) {return document.getElementById(x);}
 var displayElements = function () {
   displayOrRemoveElements(true, arguments);
 }
-var removeElements = function (elem) {
+var removeElements = function () {
   displayOrRemoveElements(false, arguments)
 }
 var displayOrRemoveElements = function (display, elemList) {
@@ -71,11 +71,13 @@ var mod = function (a, n) {
     return r % n;
   }
 }
-var modCoords = function (x,y, wrapStyle) {
+var modCoords = function (x,y, wrapStyle, maxX, maxY) {
   if (!wrapStyle) { wrapStyle = wrapSetting; }
+  if (!maxX) { maxX = xSize; }
+  if (!maxY) { maxY = ySize; }
   //
   if (wrapStyle === 'none') {
-    if (y >= 0 && y < ySize && x >= 0 && x < xSize ) {
+    if (y >= 0 && y < maxY && x >= 0 && x < maxX ) {
       return [x,y];
     } else {
       return false;
@@ -83,32 +85,32 @@ var modCoords = function (x,y, wrapStyle) {
   }
   //
   if (wrapStyle === 'torus') {
-    x = mod(x,xSize);
-    y = mod(y,ySize);
+    x = mod(x,maxX);
+    y = mod(y,maxY);
     return [x,y];
   }
   //
   if (wrapStyle === 'cylinder') {
-    if (y !== mod(y,ySize)) {
+    if (y !== mod(y,maxY)) {
       return false;
     }
-    x = mod(x,xSize);
+    x = mod(x,maxX);
     return [x,y];
   }
   //
   if (wrapStyle === 'sphere') {
-    if (y !== mod(y,ySize) || x !== mod(x,xSize)) {
+    if (y !== mod(y,maxY) || x !== mod(x,maxX)) {
       if (y < 0) {
         y = Math.abs(y+1);
       }
       if (x < 0) {
         x = Math.abs(x+1);
       }
-      if (x >= xSize) {
-        x = 2*xSize -x -1;
+      if (x >= maxX) {
+        x = 2*maxX -x -1;
       }
-      if (y >= ySize) {
-        y = 2*ySize -y -1;
+      if (y >= maxY) {
+        y = 2*maxY -y -1;
       }
       return [y,x];
     }
@@ -116,23 +118,23 @@ var modCoords = function (x,y, wrapStyle) {
   }
   //
   if (wrapStyle === 'projective plane') {
-    if (x !== mod(x,xSize)) {
-      x = mod(x,xSize);
-      y = (ySize-1) - y;
+    if (x !== mod(x,maxX)) {
+      x = mod(x,maxX);
+      y = (maxY-1) - y;
     }
-    if (y !== mod(y,ySize)) {
-      y = mod(y,ySize);
-      x = mod((xSize-1) - x, xSize);
+    if (y !== mod(y,maxY)) {
+      y = mod(y,maxY);
+      x = mod((maxX-1) - x, maxX);
     }
     return [x,y];
   }
   //
   if (wrapStyle === 'klein bottle') {
-    if (x !== mod(x,xSize)) {
-      x = mod(x,xSize);
-      y = (ySize-1) - y;
+    if (x !== mod(x,maxX)) {
+      x = mod(x,maxX);
+      y = (maxY-1) - y;
     }
-    y = mod(y,ySize);
+    y = mod(y,maxY);
     return [x,y];
   }
 }
@@ -383,7 +385,7 @@ var translateGrid = function (delX, delY, isClipboard) {
 
   for (var i = 0; i < oldG.length; i++) {
     for (var j = 0; j < oldG[i].length; j++) {
-      var newCoords = modCoords(i+delX, j+delY);
+      var newCoords = modCoords(i+delX, j+delY, 'torus');
       newG[newCoords[0]][newCoords[1]] = oldG[i][j];
     }
   }
@@ -458,10 +460,10 @@ var isVort = function (grid,x,y) {
 
 var vortNb = function (grid, x, y) {      // returns values of cells around potential vortex
   var arr = [];
-  arr.push(modCoords(x-1, y-1));
-  arr.push(modCoords(x, y-1));
-  arr.push(modCoords(x-1, y));
-  arr.push(modCoords(x, y));
+  arr.push(modCoords(x-1, y-1, false, grid.length, grid[0].length));
+  arr.push(modCoords(x, y-1, false, grid.length, grid[0].length));
+  arr.push(modCoords(x-1, y, false, grid.length, grid[0].length));
+  arr.push(modCoords(x, y, false, grid.length, grid[0].length));
   for (var i = 0; i < arr.length; i++) {
     if (arr[i]) {
       arr[i] = grid[arr[i][0]][arr[i][1]];
@@ -493,19 +495,43 @@ var updateCell = function (grid,i,j) {
   var neighbours = getNeighborhood({x:i, y:j}, 3, 3, true, true);
   var val = grid[i][j];
   var val_enemy = mod(val+1, colors);
-  var count = 0;
+  var enemyCount = 0;
   for (var i = 0; i < neighbours.length; i++) {
     if (grid[neighbours[i][0]][neighbours[i][1]] === val_enemy) {
-      count += 1;
+      enemyCount += 1;
     }
   }
 
-  if (count >= flipThreshold && count <= flipLimit) {
+  if (enemyCount >= flipThreshold && enemyCount <= flipLimit) {
     var new_val = val_enemy
   } else {
     var new_val = val
   }
+
+  // hard coded example of ruleset 3.8 expressed as an equation
+  // var inputEquation = val + ((enemyCount + 5)/8);
+  // alternate expression that also works:
+  // var inputEquation = val + indicator(enemyCount, [3,4,5,6,7,8]);
+
+  // conway's game of life
+  // var inputEquation = (indicator(val, 0)*(indicator(enemyCount, 3))) + (indicator(val, 1)*(indicator(8-enemyCount, [2,3])));
+
+  // var new_val = mod(Math.floor(inputEquation), colors);
+
   return new_val
+}
+
+var indicator = function (value, target) {  // returns 1 if value is in/equal to target, otherwise 0
+  if (typeof target !== 'object' || !target.length) {
+    target = [target];
+  }
+
+  for (var i = 0; i < target.length; i++) {
+    if (value === target[i]) {
+      return 1;
+    }
+  }
+  return 0;
 }
 
 var drawMainGrid = function () {
@@ -527,6 +553,7 @@ var drawGrid = function (cnvsElm, grid, vorts, isClipBoardCanvas) {
   }
   if (vorts) {
     if (displayVorts) {
+      // this is where vortex drawing on non-torus edges needs fixing
       var radius = Math.min(xUnit, yUnit)/3.5;
       for (var i = 0; i < vorts.length; i++) {
         if (!isClipBoardCanvas) {
