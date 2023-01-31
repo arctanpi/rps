@@ -22,6 +22,9 @@ var brushColor = false;
 var brushSize;
 var clipboard = false;
 var wrapSetting = 'torus';
+var neighborhoodDiameter = 5;
+var neighborList;
+var neighborhood = {};
 
 
 var $ = function (x) {return document.getElementById(x);}
@@ -139,7 +142,7 @@ var modCoords = function (x,y, wrapStyle, maxX, maxY) {
   }
 }
 
-var getNeighborhood = function (centerCoords, width, height, wrap, excludeCenter) {
+var getArea = function (centerCoords, width, height, wrap, excludeCenter) {
   var arr = [];
   for (var i = 0; i < width; i++) {
     var x = (centerCoords.x - Math.floor((width-1)/2)) + i;
@@ -169,7 +172,7 @@ var startPaint = function (e) {
   if (brushColor === false) {return;}
   //
   var coords = getCoords(e);
-  var area = getNeighborhood(coords, brushSize[0], brushSize[1], $('brush-wrap-checkbox').checked);
+  var area = getArea(coords, brushSize[0], brushSize[1], $('brush-wrap-checkbox').checked);
   if (brushColor === "copy") {
     //
     var i = 0;
@@ -201,12 +204,12 @@ var mouseMove = function (e, cnvsElm) {
     var coords = getCoords(e);
     if (coords.x !== paintDown.x || coords.y !== paintDown.y) {
       paintDown = coords;
-      applyPaint(getNeighborhood(coords, brushSize[0], brushSize[1], $('brush-wrap-checkbox').checked), brushColor);
+      applyPaint(getArea(coords, brushSize[0], brushSize[1], $('brush-wrap-checkbox').checked), brushColor);
     }
   } else if (brushColor !== false) {
     ctx.clearRect(0, 0, cnvsElm.width, cnvsElm.height);
     //
-    var hoveredUpon = getNeighborhood(getCoords(e), brushSize[0], brushSize[1], $('brush-wrap-checkbox').checked);
+    var hoveredUpon = getArea(getCoords(e), brushSize[0], brushSize[1], $('brush-wrap-checkbox').checked);
 
     var xUnit = cnvsElm.width / xSize;
     var yUnit = cnvsElm.height / ySize;
@@ -486,13 +489,37 @@ var nextGrid = function (grid) {
   return new_grid
 }
 
+var getNeighborhood = function (centerCoords) {
+  if (!neighborList) {
+    neighborList = [];
+    for (var coordPair in neighborhood) {
+      if (neighborhood.hasOwnProperty(coordPair)) {
+        var x = Number(coordPair.substr(0, coordPair.indexOf(",")));
+        var y = Number(coordPair.substr(coordPair.indexOf(",")+1));
+      }
+      neighborList.push([y,x])
+    }
+  }
+
+  var arr = [];
+  for (var i = 0; i < neighborList.length; i++) {
+    var newCoords = modCoords(centerCoords.x + neighborList[i][0], centerCoords.y + neighborList[i][1]);
+
+    if (newCoords) {
+      arr.push(newCoords);
+    }
+  }
+
+  return arr;
+}
+
 var updateCell = function (grid,i,j) {
   // updates cells according to the rule:
   // let n be the color state of a cell
   // let x be the number of neighbours of color n+1 a cell has
   // a cell of n flips to n+1 iff 'flipThreshold' >= x >= flipLimit
 
-  var neighbours = getNeighborhood({x:i, y:j}, 3, 3, true, true);
+  var neighbours = getNeighborhood({x:i, y:j});
   var val = grid[i][j];
   var val_enemy = mod(val+1, colors);
   var enemyCount = 0;
@@ -585,7 +612,7 @@ var drawGrid = function (cnvsElm, grid, vorts, isClipBoardCanvas) {
         for (var i = 0; i < vorts.length; i++) {
           var x0 = vorts[i][0];
           var y0 = vorts[i][1];
-          var areaList = getNeighborhood({x:x0, y:y0}, 3, 3, true, true);
+          var areaList = getArea({x:x0, y:y0}, 3, 3, true, true);
           var ref = {}
           for (var j = 0; j < areaList.length; j++) {
             ref[areaList[j]] = true;
@@ -921,12 +948,99 @@ var setWrapSetting = function () {
   initGame(currentGame.frames[currentGame.currentFrame]);
 }
 
+var setNeighborhoodPreset = function () {
+  neighborList = null;
+  neighborhood = {};
+  var preset = $("neighborhood-preset-select").value;
+
+  for (var i = 0; i < neighborhoodDiameter; i++) {
+    var x = i - Math.floor((neighborhoodDiameter-1)/2);
+    for (var j = 0; j < neighborhoodDiameter; j++) {
+      var y = j - Math.floor((neighborhoodDiameter-1)/2);
+      if (x !== 0 || y !== 0) {
+        var str = x+','+y;
+        var selected = false;
+        if (preset === 'Moore1' && Math.abs(x) < 2 && Math.abs(y) < 2) {selected = true;}
+        if (preset === 'Moore2' && Math.abs(x) < 3 && Math.abs(y) < 3) {selected = true;}
+        if (preset === 'VonNeumann1' && Math.abs(x) + Math.abs(y) < 2) {selected = true;}
+        if (preset === 'VonNeumann2' && Math.abs(x) + Math.abs(y) < 3) {selected = true;}
+        //
+        if (selected) {
+          neighborhood[str] = true;
+          $('neighborhood-button-'+str).classList.add('neighborhood-button-select');
+        } else {
+          $('neighborhood-button-'+str).classList.remove('neighborhood-button-select');
+        }
+      }
+    }
+  }
+
+  initGame(currentGame.frames[currentGame.currentFrame]);
+}
+var initNeighborhoodDisplay = function (diameter) {
+  for (var i = 0; i < diameter; i++) {
+    var x = i - Math.floor((diameter-1)/2);
+    var row = document.createElement("div");
+    $('neighborhood-display').appendChild(row);
+    row.setAttribute('class', 'neighborhood-row');
+    for (var j = 0; j < diameter; j++) {
+      var y = j - Math.floor((diameter-1)/2);
+      var button = document.createElement("button");
+      row.appendChild(button);
+      button.setAttribute('class', 'neighborhood-button');
+
+      if (x === 0 && y === 0) {
+        button.style.visibility = 'hidden';
+      } else {
+        button.setAttribute('id', 'neighborhood-button-'+x+','+y);
+        (function (xD,yD) {
+          button.onclick = function () {
+            modifyNeighborhood(xD,yD);
+          }
+        })(x,y);
+      }
+    }
+  }
+}
+var modifyNeighborhood = function (x,y) {
+  neighborList = null;
+  var str = x+','+y;
+  if (neighborhood[str]) {
+    delete neighborhood[str];
+    $('neighborhood-button-'+str).classList.remove('neighborhood-button-select');
+  } else {
+    neighborhood[str] = true;
+    $('neighborhood-button-'+str).classList.add('neighborhood-button-select');
+  }
+  $("neighborhood-preset-select").value = "(custom)";
+  initGame(currentGame.frames[currentGame.currentFrame]);
+}
+
+var collapseSection = function (section, dir) {
+  if (dir === undefined) {
+    var current = $('collapse-'+section).innerHTML;
+    if (current === "-") {
+      dir = true;
+    } else {
+      dir = false;
+    }
+  }
+
+  if (dir) {
+    removeElements(section+'-options');
+    $('collapse-'+section).innerHTML = "+";
+  } else {
+    displayElements(section+'-options');
+    $('collapse-'+section).innerHTML = "-";
+  }
+}
+
 var setVortBox = function () {
   if (colors === 3 || colors === 4) {
-    displayElements('vort-box');
+    displayElements('vortex-section');
     displayVorts = true;
   } else {
-    removeElements('vort-box');
+    removeElements('vortex-section');
     displayVorts = false;
   }
 }
@@ -1161,6 +1275,13 @@ var loadFromAddressBarOnPageLoad = function () {
 loadFromAddressBarOnPageLoad();
 setPaintContainer();
 setVortBox();
+initNeighborhoodDisplay(neighborhoodDiameter);
+setNeighborhoodPreset();
+// collapseSection('paint',true);
+// collapseSection('grid',true);
+// collapseSection('board',true);
+collapseSection('vortex',true);
+collapseSection('bulk',true);
 
 var getDateAndTimeString = function () {
   var date = new Date();
