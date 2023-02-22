@@ -25,6 +25,9 @@ var wrapSetting = 'torus';
 var neighborhoodDiameter = 5;
 var neighborList;
 var neighborhood = {};
+var updateMode = "threshold";
+var multipleRulesets = false;
+var udpateFunction;
 
 
 var $ = function (x) {return document.getElementById(x);}
@@ -514,38 +517,62 @@ var getNeighborhood = function (centerCoords) {
 }
 
 var updateCell = function (grid,i,j) {
-  // updates cells according to the rule:
-  // let n be the color state of a cell
-  // let x be the number of neighbours of color n+1 a cell has
-  // a cell of n flips to n+1 iff 'flipThreshold' >= x >= flipLimit
-
   var neighbours = getNeighborhood({x:i, y:j});
   var val = grid[i][j];
-  var val_enemy = mod(val+1, colors);
-  var enemyCount = 0;
-  for (var i = 0; i < neighbours.length; i++) {
-    if (grid[neighbours[i][0]][neighbours[i][1]] === val_enemy) {
-      enemyCount += 1;
+
+  if (updateMode === "threshold") {
+    var val_enemy = mod(val+1, colors);
+    var enemyCount = 0;
+
+    for (var i = 0; i < neighbours.length; i++) {
+      if (grid[neighbours[i][0]][neighbours[i][1]] === val_enemy) {
+        enemyCount += 1;
+      }
     }
+
+    if (multipleRulesets) {
+      console.log('todo');
+    } else {
+      var threshold = flipThreshold;
+      var limit = flipLimit;
+    }
+
+    if (enemyCount >= threshold && enemyCount <= limit) {
+      return mod(val+1, colors);
+    } else {
+      return val;
+    }
+
+  } else {                   // function mode
+    var neighbourCount = {};
+    for (var i = 0; i < colors; i++) {
+      neighbourCount["n"+i] = 0;
+    }
+    for (var i = 0; i < neighbours.length; i++) {
+      var neiVal = grid[neighbours[i][0]][neighbours[i][1]];
+      neighbourCount["n"+mod(neiVal - val, colors)]++;
+    }
+
+    if (multipleRulesets) {
+      console.log('todo');
+    } else {
+      if (!udpateFunction) {
+        var string = "return ("+ $('function-input').value +")";
+        udpateFunction = Function('val', 'n1', string);
+      }
+
+      var n1 = neighbourCount["n1"];
+
+      return mod(Math.floor(udpateFunction(val, n1)), colors);
+    }
+    // hard coded example of ruleset 3.8 expressed as an equation
+    // udpateFunction = val + ((n1 + 5)/8);
+    // alternate expression that also works:
+    // udpateFunction = val + indicator(n1, [3,4,5,6,7,8]);
+
+    // conway's game of life
+    // udpateFunction = (indicator(val, 0)*(indicator(n1, 3))) + (indicator(val, 1)*(indicator(8-n1, [2,3])));
   }
-
-  if (enemyCount >= flipThreshold && enemyCount <= flipLimit) {
-    var new_val = val_enemy
-  } else {
-    var new_val = val
-  }
-
-  // hard coded example of ruleset 3.8 expressed as an equation
-  // var inputEquation = val + ((enemyCount + 5)/8);
-  // alternate expression that also works:
-  // var inputEquation = val + indicator(enemyCount, [3,4,5,6,7,8]);
-
-  // conway's game of life
-  // var inputEquation = (indicator(val, 0)*(indicator(enemyCount, 3))) + (indicator(val, 1)*(indicator(8-enemyCount, [2,3])));
-
-  // var new_val = mod(Math.floor(inputEquation), colors);
-
-  return new_val
 }
 
 var indicator = function (value, target) {  // returns 1 if value is in/equal to target, otherwise 0
@@ -929,6 +956,7 @@ var setNumberOfColors = function () {
     makeCurrentGridRandom();
     setPaintContainer();
     setVortBox();
+    populateMultiRulesets();
   }
 }
 var setFlipConditions = function () {
@@ -942,10 +970,93 @@ var setFlipConditions = function () {
     initGame(currentGame.frames[currentGame.currentFrame]);
   }
 }
+var setUpdateFunctions = function () {
+  udpateFunction = null;
+}
 var setWrapSetting = function () {
   var val = $("wrap-style-select").value;
   wrapSetting = val;
   initGame(currentGame.frames[currentGame.currentFrame]);
+}
+
+var setUpdateMode = function (mode) {
+  if (!$('update-mode-select')) { return; }
+
+  if (!mode) {
+    mode = $('update-mode-select').value;
+  } else {
+    $('update-mode-select').value = mode;
+  }
+  updateMode = mode;
+
+  if (mode === 'function') {
+    displayElements("function-options");
+    removeElements("threshold-options");
+  } else {
+    displayElements("threshold-options");
+    removeElements("function-options");
+  }
+}
+var setMultipleRulesets = function (dir) {
+  if (!$("ruleset-mode-checkbox")) { return; }
+
+  if (!dir) {
+    dir = $("ruleset-mode-checkbox").checked;
+  } else {
+    $("ruleset-mode-checkbox").checked = dir;
+  }
+  multipleRulesets = dir;
+
+  if (dir === true) {
+    displayElements("function-options-multi", 'threshold-options-multi');
+    removeElements("function-options-single", 'threshold-options-single');
+  } else {
+    displayElements("function-options-single", 'threshold-options-single');
+    removeElements("function-options-multi", 'threshold-options-multi');
+  }
+}
+var populateMultiRulesets = function () {
+  destroyAllChildrenOfElement($("threshold-options-multi"));
+  destroyAllChildrenOfElement($("function-options-multi"));
+  //
+  for (var i = 0; i < colours[colors].length; i++) {
+    var row = $('threshold-options-single').cloneNode(true);
+    row.removeAttribute('id');
+    //
+    var colorBoop = document.createElement("boop");
+    colorBoop.setAttribute('class', 'color-boop');
+    colorBoop.style.background = colours[colors][i];
+    row.insertBefore(colorBoop, row.childNodes[0]);
+    //
+    for (var j = 0; j < row.childNodes.length; j++) {
+      if (row.childNodes[j].getAttribute && row.childNodes[j].getAttribute('id')) { // does it have that property? is it an element?
+        var id = row.childNodes[j].getAttribute('id');
+        if (id === "threshold-input") {
+          row.childNodes[j].setAttribute('id', 'threshold-input-'+i);
+        } else if (id === 'limit-input') {
+          row.childNodes[j].setAttribute('id', 'limit-input-'+i);
+        }
+      }
+    }
+    $("threshold-options-multi").appendChild(row);
+  }
+  // and again, for the function section
+  for (var i = 0; i < colours[colors].length; i++) {
+    var row = document.createElement("div");
+    //
+    var colorBoop = document.createElement("boop");
+    colorBoop.setAttribute('class', 'color-boop');
+    colorBoop.style.background = colours[colors][i];
+    row.appendChild(colorBoop);
+    //
+    var input = document.createElement("input");
+    input.setAttribute('id', 'function-input-'+i);
+    input.setAttribute('class', 'function-input');
+    input.onchange = function () { setUpdateFunctions(); }
+    row.appendChild(input);
+    //
+    $("function-options-multi").appendChild(row);
+  }
 }
 
 var setNeighborhoodPreset = function () {
@@ -1277,9 +1388,9 @@ setPaintContainer();
 setVortBox();
 initNeighborhoodDisplay(neighborhoodDiameter);
 setNeighborhoodPreset();
-// collapseSection('paint',true);
-// collapseSection('grid',true);
-// collapseSection('board',true);
+setUpdateMode(updateMode);
+setMultipleRulesets(multipleRulesets);
+populateMultiRulesets();
 collapseSection('vortex',true);
 collapseSection('bulk',true);
 

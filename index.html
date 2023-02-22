@@ -11,10 +11,19 @@
 	.color-button {
 		margin: 5px;
 		padding: 12px;
-		cursor: pointer;
 		border-radius: 5px;
     border-style: none;
 	}
+	.color-boop {
+		display: inline-block;
+		margin: 5px;
+		height: 20px;
+		width: 20px;
+		border-radius: 5px;
+    border-style: none;
+		vertical-align: middle;
+	}
+	button {cursor: pointer;}
 	.selected {
 		box-shadow: 0px 0px 2px 3px #ffffff;
 	}
@@ -62,6 +71,8 @@
 		margin-right: 2px;
 		opacity: 70%;
 	}
+	#threshold-options, #function-options{ margin-top: 8px; }
+	.function-input {width: 300px;}
 	#symmetry-box{
 		display: inline-block;
 		border-style: ridge;
@@ -144,8 +155,8 @@
 				<button id="download-button" onclick="downloadImageOfCurrentBoard()">download image</button>
 			</div>
 
-			<div id="paint-section" class="section" onclick="collapseSection('paint')">
-				<div class="section-label">
+			<div id="paint-section" class="section">
+				<div class="section-label" onclick="collapseSection('paint')">
 					<button id="collapse-paint" class="collapse-button" >-</button><!--
 					--><label>paint</label>
 				</div>
@@ -158,7 +169,7 @@
 					<button id="pasteBrushBtn" onclick="selectPaint('paste', this)" class="removed" style="vertical-align: sub;">paste brush</button>
 					<br>
 					<label for="brush-wrap-checkbox" style="vertical-align: sub;">brush wrap</label>
-					<input type="checkbox" id="brush-wrap-checkbox" checked=true style="vertical-align: sub;">
+					<input type="checkbox" id="brush-wrap-checkbox" onchange="dood()" checked=true style="vertical-align: sub;">
 					<label for = "brush-size-input-x" style="vertical-align: sub;">&nbsp;&nbsp; brush x:</label>
 					<input value=3 type="number" id="brush-size-input-x" onchange="changeBrushSize('x')" min=1 style="width:40px; vertical-align: sub;">
 					<label for = "brush-size-input-y" style="vertical-align: sub;">brush y:</label>
@@ -197,15 +208,15 @@
 				</wrapper>
 			</div>
 
-			<div id="grid-section" class="section" onclick="collapseSection('grid')">
-				<div class="section-label">
-					<button id="collapse-grid" class="collapse-button">-</button><!--
-					--><label>grid</label>
+			<div id="board-section" class="section">
+				<div class="section-label" onclick="collapseSection('board')">
+					<button id="collapse-board" class="collapse-button">-</button><!--
+					--><label>board</label>
 				</div>
 
-				<wrapper id="grid-options">
+				<wrapper id="board-options">
 					<button onclick = "makeCurrentGridRandom()" style = "width:100px"> new random </button>
-					<br>
+					<br><br>
 					<label for = "customLevelInput">input grid: </label>
 					<input type = "text" id = "customLevelInput">
 					<button id = "getCustomLevel", onclick = "getCustomLevel()"> get </button>
@@ -214,16 +225,9 @@
 					<label for = "grid-link">grid link: </label>
 					<input type = "text" id = "grid-link">
 					<button onclick="showGridLink()">get</button>
-				</wrapper>
-			</div>
 
-			<div id="board-section" class="section" onclick="collapseSection('board')">
-				<div class="section-label">
-					<button id="collapse-board" class="collapse-button">-</button><!--
-					--><label>board</label>
-				</div>
+					<br><br>
 
-				<wrapper id="board-options">
 					<label for="x-input">board width</label>
 					<input type="number" id="x-input" style="width:40px">
 					<label for="y-input">board height</label>
@@ -243,16 +247,48 @@
 						<option>cylinder</option>
 						<option>none</option>
 					</select>
-					<br>
-					<label for="threshold-input">flip threshold</label>
-					<input type="number" id="threshold-input" onchange="setFlipConditions()" style="width:40px" min="1" value="3">
-					<label for="limit-input">flip limit</label>
-					<input type="number" id="limit-input" onchange="setFlipConditions()" style="width:40px" min="1" value="8">
 				</wrapper>
 			</div>
 
-			<div id="neighborhood-section" class="section" onclick="collapseSection('neighborhood')">
-				<div class="section-label">
+			<div id="update-rules-section" class="section">
+				<div class="section-label" onclick="collapseSection('update-rules')">
+					<button id="collapse-update-rules" class="collapse-button">-</button><!--
+					--><label>update rules</label>
+				</div>
+
+				<wrapper id="update-rules-options">
+					<!--
+					<label for="update-mode-select">update mode:</label>
+					<select id="update-mode-select" onchange="setUpdateMode()">
+						<option>threshold</option>
+						<option>function</option>
+					</select>
+					&nbsp;&nbsp;
+					<label for="ruleset-mode-checkbox">ruleset for each color:</label>
+					<input type="checkbox" id="ruleset-mode-checkbox" onchange="setMultipleRulesets()" style="vertical-align: middle;">
+					<br>
+					 -->
+					<div id="threshold-options">
+						<div id="threshold-options-single">
+							<label for="threshold-input">flip threshold</label>
+							<input type="number" id="threshold-input" onchange="setFlipConditions()" style="width:40px" min="1" value="3">
+							<label for="limit-input">flip limit</label>
+							<input type="number" id="limit-input" onchange="setFlipConditions()" style="width:40px" min="1" value="8">
+						</div>
+						<div id="threshold-options-multi" class="removed"></div>
+					</div>
+
+					<div id="function-options" class="removed">
+						<div id="function-options-single">
+							<input type="text" id="function-input" class="function-input" onchange="setUpdateFunctions()">
+						</div>
+						<div id="function-options-multi"></div>
+					</div>
+				</wrapper>
+			</div>
+
+			<div id="neighborhood-section" class="section">
+				<div class="section-label" onclick="collapseSection('neighborhood')">
 					<button id="collapse-neighborhood" class="collapse-button">-</button><!--
 					--><label>neighborhood</label>
 				</div>
@@ -273,8 +309,8 @@
 				</wrapper>
 			</div>
 
-			<div id="vortex-section" class="section removed" onclick="collapseSection('vortex')">
-				<div class="section-label">
+			<div id="vortex-section" class="section removed">
+				<div class="section-label" onclick="collapseSection('vortex')">
 					<button id="collapse-vortex" class="collapse-button">-</button><!--
 					--><label>vortex</label>
 				</div>
@@ -293,8 +329,8 @@
 				</wrapper>
 			</div>
 
-			<div id="bulk-section" class="section" onclick="collapseSection('bulk')">
-				<div class="section-label">
+			<div id="bulk-section" class="section">
+				<div class="section-label" onclick="collapseSection('bulk')">
 					<button id="collapse-bulk" class="collapse-button">-</button><!--
 					--><label>bulk</label>
 				</div>
