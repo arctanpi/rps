@@ -22,13 +22,19 @@ var brushColor = false;
 var brushSize;
 var clipboard = false;
 var wrapSetting = 'torus';
+var neighborhoodDiameter = 5;
+var neighborList;
+var neighborhood = {};
+var updateMode = "threshold";
+var multipleRulesets = false;
+var udpateFunction;
 
 
 var $ = function (x) {return document.getElementById(x);}
 var displayElements = function () {
   displayOrRemoveElements(true, arguments);
 }
-var removeElements = function (elem) {
+var removeElements = function () {
   displayOrRemoveElements(false, arguments)
 }
 var displayOrRemoveElements = function (display, elemList) {
@@ -71,11 +77,13 @@ var mod = function (a, n) {
     return r % n;
   }
 }
-var modCoords = function (x,y, wrapStyle) {
+var modCoords = function (x,y, wrapStyle, maxX, maxY) {
   if (!wrapStyle) { wrapStyle = wrapSetting; }
+  if (!maxX) { maxX = xSize; }
+  if (!maxY) { maxY = ySize; }
   //
   if (wrapStyle === 'none') {
-    if (y >= 0 && y < ySize && x >= 0 && x < xSize ) {
+    if (y >= 0 && y < maxY && x >= 0 && x < maxX ) {
       return [x,y];
     } else {
       return false;
@@ -83,32 +91,32 @@ var modCoords = function (x,y, wrapStyle) {
   }
   //
   if (wrapStyle === 'torus') {
-    x = mod(x,xSize);
-    y = mod(y,ySize);
+    x = mod(x,maxX);
+    y = mod(y,maxY);
     return [x,y];
   }
   //
   if (wrapStyle === 'cylinder') {
-    if (y !== mod(y,ySize)) {
+    if (y !== mod(y,maxY)) {
       return false;
     }
-    x = mod(x,xSize);
+    x = mod(x,maxX);
     return [x,y];
   }
   //
   if (wrapStyle === 'sphere') {
-    if (y !== mod(y,ySize) || x !== mod(x,xSize)) {
+    if (y !== mod(y,maxY) || x !== mod(x,maxX)) {
       if (y < 0) {
         y = Math.abs(y+1);
       }
       if (x < 0) {
         x = Math.abs(x+1);
       }
-      if (x >= xSize) {
-        x = 2*xSize -x -1;
+      if (x >= maxX) {
+        x = 2*maxX -x -1;
       }
-      if (y >= ySize) {
-        y = 2*ySize -y -1;
+      if (y >= maxY) {
+        y = 2*maxY -y -1;
       }
       return [y,x];
     }
@@ -116,28 +124,28 @@ var modCoords = function (x,y, wrapStyle) {
   }
   //
   if (wrapStyle === 'projective plane') {
-    if (x !== mod(x,xSize)) {
-      x = mod(x,xSize);
-      y = (ySize-1) - y;
+    if (x !== mod(x,maxX)) {
+      x = mod(x,maxX);
+      y = (maxY-1) - y;
     }
-    if (y !== mod(y,ySize)) {
-      y = mod(y,ySize);
-      x = mod((xSize-1) - x, xSize);
+    if (y !== mod(y,maxY)) {
+      y = mod(y,maxY);
+      x = mod((maxX-1) - x, maxX);
     }
     return [x,y];
   }
   //
   if (wrapStyle === 'klein bottle') {
-    if (x !== mod(x,xSize)) {
-      x = mod(x,xSize);
-      y = (ySize-1) - y;
+    if (x !== mod(x,maxX)) {
+      x = mod(x,maxX);
+      y = (maxY-1) - y;
     }
-    y = mod(y,ySize);
+    y = mod(y,maxY);
     return [x,y];
   }
 }
 
-var getNeighborhood = function (centerCoords, width, height, wrap, excludeCenter) {
+var getArea = function (centerCoords, width, height, wrap, excludeCenter) {
   var arr = [];
   for (var i = 0; i < width; i++) {
     var x = (centerCoords.x - Math.floor((width-1)/2)) + i;
@@ -167,7 +175,7 @@ var startPaint = function (e) {
   if (brushColor === false) {return;}
   //
   var coords = getCoords(e);
-  var area = getNeighborhood(coords, brushSize[0], brushSize[1], $('brush-wrap-checkbox').checked);
+  var area = getArea(coords, brushSize[0], brushSize[1], $('brush-wrap-checkbox').checked);
   if (brushColor === "copy") {
     //
     var i = 0;
@@ -199,12 +207,12 @@ var mouseMove = function (e, cnvsElm) {
     var coords = getCoords(e);
     if (coords.x !== paintDown.x || coords.y !== paintDown.y) {
       paintDown = coords;
-      applyPaint(getNeighborhood(coords, brushSize[0], brushSize[1], $('brush-wrap-checkbox').checked), brushColor);
+      applyPaint(getArea(coords, brushSize[0], brushSize[1], $('brush-wrap-checkbox').checked), brushColor);
     }
   } else if (brushColor !== false) {
     ctx.clearRect(0, 0, cnvsElm.width, cnvsElm.height);
     //
-    var hoveredUpon = getNeighborhood(getCoords(e), brushSize[0], brushSize[1], $('brush-wrap-checkbox').checked);
+    var hoveredUpon = getArea(getCoords(e), brushSize[0], brushSize[1], $('brush-wrap-checkbox').checked);
 
     var xUnit = cnvsElm.width / xSize;
     var yUnit = cnvsElm.height / ySize;
@@ -383,7 +391,7 @@ var translateGrid = function (delX, delY, isClipboard) {
 
   for (var i = 0; i < oldG.length; i++) {
     for (var j = 0; j < oldG[i].length; j++) {
-      var newCoords = modCoords(i+delX, j+delY);
+      var newCoords = modCoords(i+delX, j+delY, 'torus');
       newG[newCoords[0]][newCoords[1]] = oldG[i][j];
     }
   }
@@ -458,10 +466,10 @@ var isVort = function (grid,x,y) {
 
 var vortNb = function (grid, x, y) {      // returns values of cells around potential vortex
   var arr = [];
-  arr.push(modCoords(x-1, y-1));
-  arr.push(modCoords(x, y-1));
-  arr.push(modCoords(x-1, y));
-  arr.push(modCoords(x, y));
+  arr.push(modCoords(x-1, y-1, false, grid.length, grid[0].length));
+  arr.push(modCoords(x, y-1, false, grid.length, grid[0].length));
+  arr.push(modCoords(x-1, y, false, grid.length, grid[0].length));
+  arr.push(modCoords(x, y, false, grid.length, grid[0].length));
   for (var i = 0; i < arr.length; i++) {
     if (arr[i]) {
       arr[i] = grid[arr[i][0]][arr[i][1]];
@@ -484,28 +492,100 @@ var nextGrid = function (grid) {
   return new_grid
 }
 
-var updateCell = function (grid,i,j) {
-  // updates cells according to the rule:
-  // let n be the color state of a cell
-  // let x be the number of neighbours of color n+1 a cell has
-  // a cell of n flips to n+1 iff 'flipThreshold' >= x >= flipLimit
-
-  var neighbours = getNeighborhood({x:i, y:j}, 3, 3, true, true);
-  var val = grid[i][j];
-  var val_enemy = mod(val+1, colors);
-  var count = 0;
-  for (var i = 0; i < neighbours.length; i++) {
-    if (grid[neighbours[i][0]][neighbours[i][1]] === val_enemy) {
-      count += 1;
+var getNeighborhood = function (centerCoords) {
+  if (!neighborList) {
+    neighborList = [];
+    for (var coordPair in neighborhood) {
+      if (neighborhood.hasOwnProperty(coordPair)) {
+        var x = Number(coordPair.substr(0, coordPair.indexOf(",")));
+        var y = Number(coordPair.substr(coordPair.indexOf(",")+1));
+      }
+      neighborList.push([y,x])
     }
   }
 
-  if (count >= flipThreshold && count <= flipLimit) {
-    var new_val = val_enemy
-  } else {
-    var new_val = val
+  var arr = [];
+  for (var i = 0; i < neighborList.length; i++) {
+    var newCoords = modCoords(centerCoords.x + neighborList[i][0], centerCoords.y + neighborList[i][1]);
+
+    if (newCoords) {
+      arr.push(newCoords);
+    }
   }
-  return new_val
+
+  return arr;
+}
+
+var updateCell = function (grid,i,j) {
+  var neighbours = getNeighborhood({x:i, y:j});
+  var val = grid[i][j];
+
+  if (updateMode === "threshold") {
+    var val_enemy = mod(val+1, colors);
+    var enemyCount = 0;
+
+    for (var i = 0; i < neighbours.length; i++) {
+      if (grid[neighbours[i][0]][neighbours[i][1]] === val_enemy) {
+        enemyCount += 1;
+      }
+    }
+
+    if (multipleRulesets) {
+      console.log('todo');
+    } else {
+      var threshold = flipThreshold;
+      var limit = flipLimit;
+    }
+
+    if (enemyCount >= threshold && enemyCount <= limit) {
+      return mod(val+1, colors);
+    } else {
+      return val;
+    }
+
+  } else {                   // function mode
+    var neighbourCount = {};
+    for (var i = 0; i < colors; i++) {
+      neighbourCount["n"+i] = 0;
+    }
+    for (var i = 0; i < neighbours.length; i++) {
+      var neiVal = grid[neighbours[i][0]][neighbours[i][1]];
+      neighbourCount["n"+mod(neiVal - val, colors)]++;
+    }
+
+    if (multipleRulesets) {
+      console.log('todo');
+    } else {
+      if (!udpateFunction) {
+        var string = "return ("+ $('function-input').value +")";
+        udpateFunction = Function('val', 'n1', string);
+      }
+
+      var n1 = neighbourCount["n1"];
+
+      return mod(Math.floor(udpateFunction(val, n1)), colors);
+    }
+    // hard coded example of ruleset 3.8 expressed as an equation
+    // udpateFunction = val + ((n1 + 5)/8);
+    // alternate expression that also works:
+    // udpateFunction = val + indicator(n1, [3,4,5,6,7,8]);
+
+    // conway's game of life
+    // udpateFunction = (indicator(val, 0)*(indicator(n1, 3))) + (indicator(val, 1)*(indicator(8-n1, [2,3])));
+  }
+}
+
+var indicator = function (value, target) {  // returns 1 if value is in/equal to target, otherwise 0
+  if (typeof target !== 'object' || !target.length) {
+    target = [target];
+  }
+
+  for (var i = 0; i < target.length; i++) {
+    if (value === target[i]) {
+      return 1;
+    }
+  }
+  return 0;
 }
 
 var drawMainGrid = function () {
@@ -527,6 +607,7 @@ var drawGrid = function (cnvsElm, grid, vorts, isClipBoardCanvas) {
   }
   if (vorts) {
     if (displayVorts) {
+      // this is where vortex drawing on non-torus edges needs fixing
       var radius = Math.min(xUnit, yUnit)/3.5;
       for (var i = 0; i < vorts.length; i++) {
         if (!isClipBoardCanvas) {
@@ -558,7 +639,7 @@ var drawGrid = function (cnvsElm, grid, vorts, isClipBoardCanvas) {
         for (var i = 0; i < vorts.length; i++) {
           var x0 = vorts[i][0];
           var y0 = vorts[i][1];
-          var areaList = getNeighborhood({x:x0, y:y0}, 3, 3, true, true);
+          var areaList = getArea({x:x0, y:y0}, 3, 3, true, true);
           var ref = {}
           for (var j = 0; j < areaList.length; j++) {
             ref[areaList[j]] = true;
@@ -875,6 +956,7 @@ var setNumberOfColors = function () {
     makeCurrentGridRandom();
     setPaintContainer();
     setVortBox();
+    populateMultiRulesets();
   }
 }
 var setFlipConditions = function () {
@@ -888,18 +970,188 @@ var setFlipConditions = function () {
     initGame(currentGame.frames[currentGame.currentFrame]);
   }
 }
+var setUpdateFunctions = function () {
+  udpateFunction = null;
+}
 var setWrapSetting = function () {
   var val = $("wrap-style-select").value;
   wrapSetting = val;
   initGame(currentGame.frames[currentGame.currentFrame]);
 }
 
+var setUpdateMode = function (mode) {
+  if (!$('update-mode-select')) { return; }
+
+  if (!mode) {
+    mode = $('update-mode-select').value;
+  } else {
+    $('update-mode-select').value = mode;
+  }
+  updateMode = mode;
+
+  if (mode === 'function') {
+    displayElements("function-options");
+    removeElements("threshold-options");
+  } else {
+    displayElements("threshold-options");
+    removeElements("function-options");
+  }
+}
+var setMultipleRulesets = function (dir) {
+  if (!$("ruleset-mode-checkbox")) { return; }
+
+  if (!dir) {
+    dir = $("ruleset-mode-checkbox").checked;
+  } else {
+    $("ruleset-mode-checkbox").checked = dir;
+  }
+  multipleRulesets = dir;
+
+  if (dir === true) {
+    displayElements("function-options-multi", 'threshold-options-multi');
+    removeElements("function-options-single", 'threshold-options-single');
+  } else {
+    displayElements("function-options-single", 'threshold-options-single');
+    removeElements("function-options-multi", 'threshold-options-multi');
+  }
+}
+var populateMultiRulesets = function () {
+  destroyAllChildrenOfElement($("threshold-options-multi"));
+  destroyAllChildrenOfElement($("function-options-multi"));
+  //
+  for (var i = 0; i < colours[colors].length; i++) {
+    var row = $('threshold-options-single').cloneNode(true);
+    row.removeAttribute('id');
+    //
+    var colorBoop = document.createElement("boop");
+    colorBoop.setAttribute('class', 'color-boop');
+    colorBoop.style.background = colours[colors][i];
+    row.insertBefore(colorBoop, row.childNodes[0]);
+    //
+    for (var j = 0; j < row.childNodes.length; j++) {
+      if (row.childNodes[j].getAttribute && row.childNodes[j].getAttribute('id')) { // does it have that property? is it an element?
+        var id = row.childNodes[j].getAttribute('id');
+        if (id === "threshold-input") {
+          row.childNodes[j].setAttribute('id', 'threshold-input-'+i);
+        } else if (id === 'limit-input') {
+          row.childNodes[j].setAttribute('id', 'limit-input-'+i);
+        }
+      }
+    }
+    $("threshold-options-multi").appendChild(row);
+  }
+  // and again, for the function section
+  for (var i = 0; i < colours[colors].length; i++) {
+    var row = document.createElement("div");
+    //
+    var colorBoop = document.createElement("boop");
+    colorBoop.setAttribute('class', 'color-boop');
+    colorBoop.style.background = colours[colors][i];
+    row.appendChild(colorBoop);
+    //
+    var input = document.createElement("input");
+    input.setAttribute('id', 'function-input-'+i);
+    input.setAttribute('class', 'function-input');
+    input.onchange = function () { setUpdateFunctions(); }
+    row.appendChild(input);
+    //
+    $("function-options-multi").appendChild(row);
+  }
+}
+
+var setNeighborhoodPreset = function () {
+  neighborList = null;
+  neighborhood = {};
+  var preset = $("neighborhood-preset-select").value;
+
+  for (var i = 0; i < neighborhoodDiameter; i++) {
+    var x = i - Math.floor((neighborhoodDiameter-1)/2);
+    for (var j = 0; j < neighborhoodDiameter; j++) {
+      var y = j - Math.floor((neighborhoodDiameter-1)/2);
+      if (x !== 0 || y !== 0) {
+        var str = x+','+y;
+        var selected = false;
+        if (preset === 'Moore1' && Math.abs(x) < 2 && Math.abs(y) < 2) {selected = true;}
+        if (preset === 'Moore2' && Math.abs(x) < 3 && Math.abs(y) < 3) {selected = true;}
+        if (preset === 'VonNeumann1' && Math.abs(x) + Math.abs(y) < 2) {selected = true;}
+        if (preset === 'VonNeumann2' && Math.abs(x) + Math.abs(y) < 3) {selected = true;}
+        //
+        if (selected) {
+          neighborhood[str] = true;
+          $('neighborhood-button-'+str).classList.add('neighborhood-button-select');
+        } else {
+          $('neighborhood-button-'+str).classList.remove('neighborhood-button-select');
+        }
+      }
+    }
+  }
+
+  initGame(currentGame.frames[currentGame.currentFrame]);
+}
+var initNeighborhoodDisplay = function (diameter) {
+  for (var i = 0; i < diameter; i++) {
+    var x = i - Math.floor((diameter-1)/2);
+    var row = document.createElement("div");
+    $('neighborhood-display').appendChild(row);
+    row.setAttribute('class', 'neighborhood-row');
+    for (var j = 0; j < diameter; j++) {
+      var y = j - Math.floor((diameter-1)/2);
+      var button = document.createElement("button");
+      row.appendChild(button);
+      button.setAttribute('class', 'neighborhood-button');
+
+      if (x === 0 && y === 0) {
+        button.style.visibility = 'hidden';
+      } else {
+        button.setAttribute('id', 'neighborhood-button-'+x+','+y);
+        (function (xD,yD) {
+          button.onclick = function () {
+            modifyNeighborhood(xD,yD);
+          }
+        })(x,y);
+      }
+    }
+  }
+}
+var modifyNeighborhood = function (x,y) {
+  neighborList = null;
+  var str = x+','+y;
+  if (neighborhood[str]) {
+    delete neighborhood[str];
+    $('neighborhood-button-'+str).classList.remove('neighborhood-button-select');
+  } else {
+    neighborhood[str] = true;
+    $('neighborhood-button-'+str).classList.add('neighborhood-button-select');
+  }
+  $("neighborhood-preset-select").value = "(custom)";
+  initGame(currentGame.frames[currentGame.currentFrame]);
+}
+
+var collapseSection = function (section, dir) {
+  if (dir === undefined) {
+    var current = $('collapse-'+section).innerHTML;
+    if (current === "-") {
+      dir = true;
+    } else {
+      dir = false;
+    }
+  }
+
+  if (dir) {
+    removeElements(section+'-options');
+    $('collapse-'+section).innerHTML = "+";
+  } else {
+    displayElements(section+'-options');
+    $('collapse-'+section).innerHTML = "-";
+  }
+}
+
 var setVortBox = function () {
   if (colors === 3 || colors === 4) {
-    displayElements('vort-box');
+    displayElements('vortex-section');
     displayVorts = true;
   } else {
-    removeElements('vort-box');
+    removeElements('vortex-section');
     displayVorts = false;
   }
 }
@@ -1134,6 +1386,13 @@ var loadFromAddressBarOnPageLoad = function () {
 loadFromAddressBarOnPageLoad();
 setPaintContainer();
 setVortBox();
+initNeighborhoodDisplay(neighborhoodDiameter);
+setNeighborhoodPreset();
+setUpdateMode(updateMode);
+setMultipleRulesets(multipleRulesets);
+populateMultiRulesets();
+collapseSection('vortex',true);
+collapseSection('bulk',true);
 
 var getDateAndTimeString = function () {
   var date = new Date();

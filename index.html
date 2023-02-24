@@ -11,10 +11,19 @@
 	.color-button {
 		margin: 5px;
 		padding: 12px;
-		cursor: pointer;
 		border-radius: 5px;
     border-style: none;
 	}
+	.color-boop {
+		display: inline-block;
+		margin: 5px;
+		height: 20px;
+		width: 20px;
+		border-radius: 5px;
+    border-style: none;
+		vertical-align: middle;
+	}
+	button {cursor: pointer;}
 	.selected {
 		box-shadow: 0px 0px 2px 3px #ffffff;
 	}
@@ -49,16 +58,39 @@
 	}
 	.section {
 		margin: 10px 0;
-		padding: 4px;
+		padding: 0 0 4px;
 		border-style: groove;
     width: 440px;
 	}
+	.section-label {
+		text-align: left;
+    display: block;
+		text-decoration: underline;
+	}
+	.collapse-button {
+		margin-right: 2px;
+		opacity: 70%;
+	}
+	#threshold-options, #function-options{ margin-top: 8px; }
+	.function-input {width: 300px;}
 	#symmetry-box{
 		display: inline-block;
 		border-style: ridge;
 		margin: 3px;
 		padding: 3px;
 	}
+	#neighborhood-display { margin-top: 4px; }
+	.neighborhood-row { height: 26px;}
+	.neighborhood-button {
+		height: 25px;
+		width: 25px;
+		border-width: 1px;
+    border-radius: 3px;
+    margin: 0.5px;
+		border-style: inset;
+		cursor: pointer;
+	}
+	.neighborhood-button-select { background: lightblue; }
 	#bulk-report { margin: 10px; }
 	.text-button {
 		border: none;
@@ -100,7 +132,7 @@
 
 			<button onclick = "deselectPaint(); forwardOneStep()" style = "width:90px"> +1 frame </button>
 			<button onclick = "deselectPaint(); continuousPlay(500)" style = "width:90px"> go slow </button>
-			<button onclick = "deselectPaint(); continuousPlay(100)" style = "width:90px"> go med </button>
+			<button onclick = "deselectPaint(); continuousPlay(100)" style = "width:90px"> go medium </button>
 			<button onclick = "deselectPaint(); continuousPlay(20)" style = "width:90px"> go fast </button>
 			<button onclick = "deselectPaint(); continuousPlay(0)" style = "width:90px"> go fastest </button>
 			<button onclick = "stopContinuousPlay()" style = "width:90px"> stop </button>
@@ -123,114 +155,192 @@
 				<button id="download-button" onclick="downloadImageOfCurrentBoard()">download image</button>
 			</div>
 
-			<div id="paint-options" class="section">
-				<box id="color-container"></box>
-				<label for = "brush-size-input" style="vertical-align: sub;">brush size:</label>
-				<input value=3 type="number" id="brush-size-input" onchange="changeBrushSize()" min=1 style="width:40px; vertical-align: sub;">
-				<button id="copyBrushBtn" onclick="selectPaint('copy', this)" style="vertical-align: sub;">copy brush</button>
-				<button id="pasteBrushBtn" onclick="selectPaint('paste', this)" class="removed" style="vertical-align: sub;">paste brush</button>
-				<br>
-				<label for="brush-wrap-checkbox" style="vertical-align: sub;">brush wrap</label>
-				<input type="checkbox" id="brush-wrap-checkbox" checked=true style="vertical-align: sub;">
-				<label for = "brush-size-input-x" style="vertical-align: sub;">&nbsp;&nbsp; brush x:</label>
-				<input value=3 type="number" id="brush-size-input-x" onchange="changeBrushSize('x')" min=1 style="width:40px; vertical-align: sub;">
-				<label for = "brush-size-input-y" style="vertical-align: sub;">brush y:</label>
-				<input value=3 type="number" id="brush-size-input-y" onchange="changeBrushSize('y')" min=1 style="width:40px; vertical-align: sub;">
-				<wrapper id="symmetry-box">
-					<label>symmetry preserving whole grid transformations:</label>
+			<div id="paint-section" class="section">
+				<div class="section-label" onclick="collapseSection('paint')">
+					<button id="collapse-paint" class="collapse-button" >-</button><!--
+					--><label>paint</label>
+				</div>
+
+				<wrapper id="paint-options">
+					<box id="color-container"></box>
+					<label for = "brush-size-input" style="vertical-align: sub;">brush size:</label>
+					<input value=3 type="number" id="brush-size-input" onchange="changeBrushSize()" min=1 style="width:40px; vertical-align: sub;">
+					<button id="copyBrushBtn" onclick="selectPaint('copy', this)" style="vertical-align: sub;">copy brush</button>
+					<button id="pasteBrushBtn" onclick="selectPaint('paste', this)" class="removed" style="vertical-align: sub;">paste brush</button>
 					<br>
-					<button onclick="rotateGrid()">↻</button>
-					<button onclick="reflectGrid()">⇄</button>
-					<button onclick="translateGrid(-1,0)">🡠</button>
-					<button onclick="translateGrid(1,0)">🡢</button>
-					<button onclick="translateGrid(0,-1)">🡡</button>
-					<button onclick="translateGrid(0,1)">🡣</button>
-					<button onclick="colorRotateGrid()">cycle colors</button>
-				</wrapper>
+					<label for="brush-wrap-checkbox" style="vertical-align: sub;">brush wrap</label>
+					<input type="checkbox" id="brush-wrap-checkbox" onchange="dood()" checked=true style="vertical-align: sub;">
+					<label for = "brush-size-input-x" style="vertical-align: sub;">&nbsp;&nbsp; brush x:</label>
+					<input value=3 type="number" id="brush-size-input-x" onchange="changeBrushSize('x')" min=1 style="width:40px; vertical-align: sub;">
+					<label for = "brush-size-input-y" style="vertical-align: sub;">brush y:</label>
+					<input value=3 type="number" id="brush-size-input-y" onchange="changeBrushSize('y')" min=1 style="width:40px; vertical-align: sub;">
+					<wrapper id="symmetry-box">
+						<label>whole grid transformations:</label>
+						<br>
+						<button onclick="rotateGrid()">↻</button>
+						<button onclick="reflectGrid()">⇄</button>
+						<button onclick="translateGrid(-1,0)">🡠</button>
+						<button onclick="translateGrid(1,0)">🡢</button>
+						<button onclick="translateGrid(0,-1)">🡡</button>
+						<button onclick="translateGrid(0,1)">🡣</button>
+						<button onclick="colorRotateGrid()">cycle colors</button>
+					</wrapper>
 
-				<br>
-				<wrapper id="clipboard-wrapper" class="removed">
 					<br>
-					<label for="clipboard-canvas" style="vertical-align: top;">clipboard:</label>
-					<canvas id="clipboard-canvas" style="border:1px solid #000000;"></canvas>
+					<wrapper id="clipboard-wrapper" class="removed">
+						<br>
+						<label for="clipboard-canvas" style="vertical-align: top;">clipboard:</label>
+						<canvas id="clipboard-canvas" style="border:1px solid #000000;"></canvas>
+					</wrapper>
+					<br>
+					<input type="text" id="clipboard-input">
+					<button onclick="importClipboard()">load clipboard from string</button>
+					<br>
+					<wrapper id="clipboard-button-wrapper" class="removed">
+						<button onclick="rotateGrid(true)">↻</button>
+						<button onclick="reflectGrid(true)">⇄</button>
+						<button onclick="translateGrid(-1,0, true)">🡠</button>
+						<button onclick="translateGrid(1,0, true)">🡢</button>
+						<button onclick="translateGrid(0,-1, true)">🡡</button>
+						<button onclick="translateGrid(0,1, true)">🡣</button>
+						<button onclick="colorRotateGrid(true)">cycle colors</button>
+					</wrapper>
 				</wrapper>
-				<br>
-				<input type="text" id="clipboard-input">
-				<button onclick="importClipboard()">load clipboard from string</button>
-				<br>
-				<wrapper id="clipboard-button-wrapper" class="removed">
-					<button onclick="rotateGrid(true)">↻</button>
-					<button onclick="reflectGrid(true)">⇄</button>
-					<button onclick="translateGrid(-1,0, true)">🡠</button>
-					<button onclick="translateGrid(1,0, true)">🡢</button>
-					<button onclick="translateGrid(0,-1, true)">🡡</button>
-					<button onclick="translateGrid(0,1, true)">🡣</button>
-					<button onclick="colorRotateGrid(true)">cycle colors</button>
+			</div>
+
+			<div id="board-section" class="section">
+				<div class="section-label" onclick="collapseSection('board')">
+					<button id="collapse-board" class="collapse-button">-</button><!--
+					--><label>board</label>
+				</div>
+
+				<wrapper id="board-options">
+					<button onclick = "makeCurrentGridRandom()" style = "width:100px"> new random </button>
+					<br><br>
+					<label for = "customLevelInput">input grid: </label>
+					<input type = "text" id = "customLevelInput">
+					<button id = "getCustomLevel", onclick = "getCustomLevel()"> get </button>
+					<button id = "setCustomLevel", onclick = "setCustomLevel()"> set </button>
+					<br>
+					<label for = "grid-link">grid link: </label>
+					<input type = "text" id = "grid-link">
+					<button onclick="showGridLink()">get</button>
+
+					<br><br>
+
+					<label for="x-input">board width</label>
+					<input type="number" id="x-input" style="width:40px">
+					<label for="y-input">board height</label>
+					<input type="number" id="y-input" style="width:40px">
+					<button onclick="changeBoardDimensions()">set board dimensions</button>
+					<br>
+					<label for="colors-input"># of colors</label>
+					<input type="number" id="colors-input" style="width:34px" min="2" max="7" value="3">
+					<button onclick="setNumberOfColors()">set colors</button>
+					<br>
+					<label for="wrap-style-select">wrap style:</label>
+					<select id="wrap-style-select" onchange="setWrapSetting()">
+						<option>torus</option>
+						<option>sphere</option>
+						<option>projective plane</option>
+						<option>klein bottle</option>
+						<option>cylinder</option>
+						<option>none</option>
+					</select>
 				</wrapper>
 			</div>
 
+			<div id="update-rules-section" class="section">
+				<div class="section-label" onclick="collapseSection('update-rules')">
+					<button id="collapse-update-rules" class="collapse-button">-</button><!--
+					--><label>update rules</label>
+				</div>
 
-			<div id="grid-set-up-box" class="section">
-				<button onclick = "makeCurrentGridRandom()" style = "width:100px"> new random </button>
-				<br>
-				<label for = "customLevelInput">input grid: </label>
-				<input type = "text" id = "customLevelInput">
-				<button id = "getCustomLevel", onclick = "getCustomLevel()"> get </button>
-				<button id = "setCustomLevel", onclick = "setCustomLevel()"> set </button>
-				<br>
-				<label for = "grid-link">grid link: </label>
-				<input type = "text" id = "grid-link">
-				<button onclick="showGridLink()">get</button>
+				<wrapper id="update-rules-options">
+					<!--
+					<label for="update-mode-select">update mode:</label>
+					<select id="update-mode-select" onchange="setUpdateMode()">
+						<option>threshold</option>
+						<option>function</option>
+					</select>
+					&nbsp;&nbsp;
+					<label for="ruleset-mode-checkbox">ruleset for each color:</label>
+					<input type="checkbox" id="ruleset-mode-checkbox" onchange="setMultipleRulesets()" style="vertical-align: middle;">
+					<br>
+					 -->
+					<div id="threshold-options">
+						<div id="threshold-options-single">
+							<label for="threshold-input">flip threshold</label>
+							<input type="number" id="threshold-input" onchange="setFlipConditions()" style="width:40px" min="1" value="3">
+							<label for="limit-input">flip limit</label>
+							<input type="number" id="limit-input" onchange="setFlipConditions()" style="width:40px" min="1" value="8">
+						</div>
+						<div id="threshold-options-multi" class="removed"></div>
+					</div>
+
+					<div id="function-options" class="removed">
+						<div id="function-options-single">
+							<input type="text" id="function-input" class="function-input" onchange="setUpdateFunctions()">
+						</div>
+						<div id="function-options-multi"></div>
+					</div>
+				</wrapper>
 			</div>
 
+			<div id="neighborhood-section" class="section">
+				<div class="section-label" onclick="collapseSection('neighborhood')">
+					<button id="collapse-neighborhood" class="collapse-button">-</button><!--
+					--><label>neighborhood</label>
+				</div>
 
-			<div id="board-set-up-box" class="section">
-				<label for="x-input">board width</label>
-				<input type="number" id="x-input" style="width:40px">
-				<label for="y-input">board height</label>
-				<input type="number" id="y-input" style="width:40px">
-				<button onclick="changeBoardDimensions()">set board dimensions</button>
-				<br>
-				<label for="colors-input"># of colors</label>
-				<input type="number" id="colors-input" style="width:34px" min="2" max="7" value="3">
-				<button onclick="setNumberOfColors()">set colors</button>
-				<br>
-				<label for="wrap-style-select">wrap style:</label>
-				<select id="wrap-style-select" onchange="setWrapSetting()">
-					<option>torus</option>
-					<option>sphere</option>
-					<option>projective plane</option>
-					<option>klein bottle</option>
-					<option>cylinder</option>
-					<option>none</option>
-				</select>
-				<br>
-				<label for="threshold-input">flip threshold</label>
-				<input type="number" id="threshold-input" onchange="setFlipConditions()" style="width:34px" min="1" max="8" value="3">
-				<label for="limit-input">flip limit</label>
-				<input type="number" id="limit-input" onchange="setFlipConditions()" style="width:34px" min="1" max="8" value="8">
+				<wrapper id="neighborhood-options">
+					<label for="neighborhood-preset-select">preset:</label>
+					<select id="neighborhood-preset-select" onchange="setNeighborhoodPreset()">
+						<option>Moore1</option>
+						<option>Moore2</option>
+						<option>VonNeumann1</option>
+						<option>VonNeumann2</option>
+						<option>(custom)</option>
+					</select>
+
+					<div id="neighborhood-display">
+
+					</div>
+				</wrapper>
 			</div>
 
+			<div id="vortex-section" class="section removed">
+				<div class="section-label" onclick="collapseSection('vortex')">
+					<button id="collapse-vortex" class="collapse-button">-</button><!--
+					--><label>vortex</label>
+				</div>
 
-			<div id="vort-box" class="section removed">
-				<button id="displayVortsButton" onclick = "toggleDisplayVorts()" style = "width:100px"> hide vorts </button>
-				<button id="displayVortLocsButton" onclick = "toggleDisplayVortLocs()" style = "width:130px"> show vort coords </button>
-				<button id="displayVortPathButton" onclick = "toggleDisplayVortPath()" style = "width:120px"> show vort path </button>
-				<br>
-				<text id="vortNum"># vortices: 10</text>
-				<br>
-				<text id="vortLocs" class="removed"></text>
-				<br>
-				<input type = "number" id = "vortGraphFrame" style = "width:45px">
-				<button onclick = "getVortexGraph()"> get vortex graph </button>
+				<wrapper id="vortex-options">
+					<button id="displayVortsButton" onclick = "toggleDisplayVorts()" style = "width:100px"> hide vorts </button>
+					<button id="displayVortLocsButton" onclick = "toggleDisplayVortLocs()" style = "width:130px"> show vort coords </button>
+					<button id="displayVortPathButton" onclick = "toggleDisplayVortPath()" style = "width:120px"> show vort path </button>
+					<br>
+					<text id="vortNum"># vortices: 10</text>
+					<br>
+					<text id="vortLocs" class="removed"></text>
+					<br>
+					<input type = "number" id = "vortGraphFrame" style = "width:45px">
+					<button onclick = "getVortexGraph()"> get vortex graph </button>
+				</wrapper>
 			</div>
 
+			<div id="bulk-section" class="section">
+				<div class="section-label" onclick="collapseSection('bulk')">
+					<button id="collapse-bulk" class="collapse-button">-</button><!--
+					--><label>bulk</label>
+				</div>
 
-			<div id="bulk-options-box" class="section">
-				<label for="">get stats for</label>
-				<input type="number" id="bulk-input" style="width:54px" value=100 step=10>
-				<label>random grids with current settings</label>
-				<button onclick="bulkRunner()">run</button>
+				<wrapper id="bulk-options">
+					<label for="">get stats for</label>
+					<input type="number" id="bulk-input" style="width:54px" value=100 step=10>
+					<label>random grids with current settings</label>
+					<button onclick="bulkRunner()">run</button>
+				</wrapper>
 			</div>
 		</div>
 
