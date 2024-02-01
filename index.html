@@ -53,8 +53,14 @@
 	#frameCount {font-size: 3em;}
 	#download-button {display: block;}
 	input {margin: 4px 0;}
-	#meta-wrapper{
+	#meta-wrapper {
 		padding-bottom: 5px;
+		position: relative;
+	}
+	#about-button {
+		position: absolute;
+    	right: 0;
+		top: 0;
 	}
 	.section {
 		margin: 10px 0;
@@ -106,6 +112,31 @@
 		text-decoration: inherit;
 		color: blue;
 	}
+	#about-backing {
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		background-color: rgba(0, 0, 0, 0.75);
+	}
+	#about {
+		position: fixed;
+		width: 770px;
+		max-width: 98vw;
+		left: 50%;
+		top: 4vh;
+		border-radius: 10px;
+		transform: translate(-50%, 0);
+		background: gainsboro;
+		text-align: left;
+		padding: 40px;
+		max-height: 90vh;
+		overflow-y: auto;
+	}
+	@media (max-width: 500px) {
+		#meta-wrapper { margin-top: 30px; }
+	}
 	.removed {display: none;}
 </style>
 </head>
@@ -138,9 +169,10 @@
 			<button onclick = "stopContinuousPlay()" style = "width:90px"> stop </button>
 		</div>
 		<div id="meta-wrapper">
+			<button id="about-button" onclick="displayElements('about-backing');">about</button>
 
 			<div id="frame-info">
-				<label for="frameCount">frame:</label>
+				<text>frame:</text>
 				<text id="frameCount"></text>
 
 				<br>
@@ -158,24 +190,24 @@
 			<div id="paint-section" class="section">
 				<div class="section-label" onclick="collapseSection('paint')">
 					<button id="collapse-paint" class="collapse-button" >-</button><!--
-					--><label>paint</label>
+					--><text>paint</text>
 				</div>
 
 				<wrapper id="paint-options">
 					<box id="color-container"></box>
-					<label for = "brush-size-input" style="vertical-align: sub;">brush size:</label>
+					<label for="brush-size-input" style="vertical-align: sub;">brush size:</label>
 					<input value=3 type="number" id="brush-size-input" onchange="changeBrushSize()" min=1 style="width:40px; vertical-align: sub;">
 					<button id="copyBrushBtn" onclick="selectPaint('copy', this)" style="vertical-align: sub;">copy brush</button>
 					<button id="pasteBrushBtn" onclick="selectPaint('paste', this)" class="removed" style="vertical-align: sub;">paste brush</button>
 					<br>
 					<label for="brush-wrap-checkbox" style="vertical-align: sub;">brush wrap</label>
 					<input type="checkbox" id="brush-wrap-checkbox" onchange="dood()" checked=true style="vertical-align: sub;">
-					<label for = "brush-size-input-x" style="vertical-align: sub;">&nbsp;&nbsp; brush x:</label>
+					<label for="brush-size-input-x" style="vertical-align: sub;">&nbsp;&nbsp; brush x:</label>
 					<input value=3 type="number" id="brush-size-input-x" onchange="changeBrushSize('x')" min=1 style="width:40px; vertical-align: sub;">
-					<label for = "brush-size-input-y" style="vertical-align: sub;">brush y:</label>
+					<label for="brush-size-input-y" style="vertical-align: sub;">brush y:</label>
 					<input value=3 type="number" id="brush-size-input-y" onchange="changeBrushSize('y')" min=1 style="width:40px; vertical-align: sub;">
 					<wrapper id="symmetry-box">
-						<label>whole grid transformations:</label>
+						<text>whole grid transformations:</text>
 						<br>
 						<button onclick="rotateGrid()">↻</button>
 						<button onclick="reflectGrid()">⇄</button>
@@ -189,7 +221,7 @@
 					<br>
 					<wrapper id="clipboard-wrapper" class="removed">
 						<br>
-						<label for="clipboard-canvas" style="vertical-align: top;">clipboard:</label>
+						<text style="vertical-align: top;">clipboard:</text>
 						<canvas id="clipboard-canvas" style="border:1px solid #000000;"></canvas>
 					</wrapper>
 					<br>
@@ -211,7 +243,7 @@
 			<div id="board-section" class="section">
 				<div class="section-label" onclick="collapseSection('board')">
 					<button id="collapse-board" class="collapse-button">-</button><!--
-					--><label>board</label>
+					--><text>board</text>
 				</div>
 
 				<wrapper id="board-options">
@@ -253,7 +285,7 @@
 			<div id="update-rules-section" class="section">
 				<div class="section-label" onclick="collapseSection('update-rules')">
 					<button id="collapse-update-rules" class="collapse-button">-</button><!--
-					--><label>update rules</label>
+					--><text>update rules</text>
 				</div>
 
 				<wrapper id="update-rules-options">
@@ -290,7 +322,7 @@
 			<div id="neighborhood-section" class="section">
 				<div class="section-label" onclick="collapseSection('neighborhood')">
 					<button id="collapse-neighborhood" class="collapse-button">-</button><!--
-					--><label>neighborhood</label>
+					--><text>neighborhood</text>
 				</div>
 
 				<wrapper id="neighborhood-options">
@@ -312,7 +344,7 @@
 			<div id="vortex-section" class="section removed">
 				<div class="section-label" onclick="collapseSection('vortex')">
 					<button id="collapse-vortex" class="collapse-button">-</button><!--
-					--><label>vortex</label>
+					--><text>vortex</text>
 				</div>
 
 				<wrapper id="vortex-options">
@@ -332,19 +364,64 @@
 			<div id="bulk-section" class="section">
 				<div class="section-label" onclick="collapseSection('bulk')">
 					<button id="collapse-bulk" class="collapse-button">-</button><!--
-					--><label>bulk</label>
+					--><text>bulk</text>
 				</div>
 
 				<wrapper id="bulk-options">
-					<label for="">get stats for</label>
+					<label for="bulk-input">get stats for</label>
 					<input type="number" id="bulk-input" style="width:54px" value=100 step=10>
-					<label>random grids with current settings</label>
+					<text>random grids with current settings</text>
 					<button onclick="bulkRunner()">run</button>
 				</wrapper>
 			</div>
 		</div>
 
 	</wrapper>
+
+	<div id="about-backing" class="removed" onclick="removeElements('about-backing');">
+	<div id="about" onclick="event.stopPropagation();">
+		this is a tool for playing with various kinds of "rock, paper, scissors" style multi-state cellular automata<br>
+		<br>
+		as in,<br>
+		a cell of state 0 will change to state 1 if it has a sufficent number of neighbor cells of state 1<br>
+		likewise with state 1 changing to state 2<br>
+		then state 2 wraps around to change into state 0<br>
+		<br>
+		as in,<br>
+		paper beats rock, rocks beats scissors, scissors beats paper<br>
+		<br>
+		that would be a "3 state" cellular automaton<br>
+		this tool allows between 2 and 7 states<br>
+		<br>
+		you can change what number of neighbors is considers "sufficient" to cause a state change<br>
+		you can change the neighborhood size and shape, for determining which nearby cells count as neighbors<br>
+		you can change the grid size and the wrapping behavior at the edges<br>
+		<br>
+		some examples of neat behavior that has been discovered:<br>
+		<a target="_blank" href="#50x50.3.3.8.ɅɭȟʓϫʯΆǻћɢĆқХӖɺɅΆЗҐȟʓŠȦ¿ӖʖƇΆƿɕӅƇëĀʊΆԒԆɝʓˠӅʓĆΆԆӖХķɝʓҐǻԆŠȦɌŠȦҐƿԆɕӅɔԆΆҐԒԆԆɝϫɕɌΆћԆėӖϔɕΆΆћԆɌàȟʖʯΆћԆɕΆΆХӖћϰԆԆŭΆȦƻâƽԆԆɭΆȟϫɰɅԆʊʓĆΆʓʷ¿Ԇʊʓ¿ΆȦԡҐɅɢʓҐΆȦʓϕћʷʓҐΆȦʓʓĆƿʓҐΆӅХʊҐɅʊҐΆȟХηϕћɢϕΆʇХԆҞ¿ηʓĆΆϔԆʷƇƿʊҐΆӅɔɅʊԒɢϕΆȟʖћ˱ķηʓĆΆХӖƽɌԆʊҐΆϔɌЃʖԆɢϕΆӅƻӅХԆηʓĆɇϫɝʓʃƽʊҐΆȦŠȦϫћɢʓΆȟʖɇʓҐЗʓƇΆϔɌӅϕԒҞʓ¿ӅƻΆқĆʷрϕΆХӖɇ¿ƿϫҞĆȦɕΆΆɅѴԆƇɇϫӖĆћɢԆҞΆϔɕĘΆʷҕηҐȟʖɢαΒʓɅɭΆźԆƇқʓ¿ʷ¿ӅϫʊʓʓҐƽƇɇʓȹʓʓҐɅɢĆӅʓʓʓ¿ћηҐɇʓʓʓƇΆƽҞΆʓʓʓʓ¿Ʌʷ¿ʓΒʓʓʓћԆƇʓʖɢʓҞ¿ƽɭқʖԆԆԆϕћɢԨʖԆԆԆɢĆҴʓʖŠƽԆԆƇȟʓХŠћԆþҞɇʓźŠΆƿԑ">1</a>, <a target="_blank" href="#50x50.4.3.8.УҚʹƸҭŪіȈ¢ѸěÛäԧÛʸȥžӏɌȋɶȫ˱ɕƴԆȋøκŅǄϰŸηһɝӧɲΙěʺ˱ǛɊӧјхһþ˻˱ǯҔƽжҚɚρȈԆкβΤĩӧʊƫōʡłł¢ĶȲ§ĄͶĄɋϚȻǊΟˮʉƽȊөŭʡʺɶȫ³ɕПѧωǖԉԌțȣɭφǙԌʴıұҏϊϚΔûԅļуǫѽœĄТɲŽοħĔԥԅԥωѧɚ³ƌͲѴЂűŃ˪ҞˮӳŃοȥÂÚһ®ťЈʒƽɋɋőТǲ˅ɰǩ˱ϸ˻ȋƙ§ŸıЯɲӳϯƸħӖϯϢƒґǕĄǈǉβǏˬЮˀКäЪǫΤӳåԑĜ˪ǖ÷ř˨ѣҏѫʹāΙвβʡвûϡӶƖϐþөıǄҭȴĻŅȻąϘŅřͲЯΜѼӯäϛÛěțУƸѧǊȥӚЂąǻѣϭӸʒɶǉͶӶ˻ӠԃʹıǽɊЬīΜҭјЗÛϸȚɕǰʠȥԈ˱ΜʒϥɫƒťɃʸɲÂеļȸӠāƒ˅ļ;ǄąϐˇήЀËʸɃѼĔÂŭЀþѼȥԥǛœήϥŽӷɯǥɝ¢ȚűρӠӯϚ³ĜɋȋͶɃТѫЉвħ˅ԑÛīȀʺԥŅȎƸϵűΊϥǏĥаѾеǿѽοǄЮɯƖ˅ͲÛĩƴǰäͶϡӋ˪ӠӶϊʺІϿϚϡΟϘƽЮķϰűϣԑԑӠкƙϭρʝŸŸжǕąуѸϘӚīІǯĖχłϭäҭŻԅЉΔϡͶϢӶǫǾϥžǏʹе;ˀǊԥĉӏԅѵāþǫхĻͺɌƟԧϥĩʉ³ȸȀґТөΟɶӳʺȚҚˬĶƌĥȎϚǫΟˬɫǊʹǉΤǭäЀǽƸÚƫЄå®ӏЈǊԉϢһĻӠ˱ЗɆƫԧέӋʒțŠɢοķȋËˀЉјκӳʡөǥžɝφβȸѣωÛȣѾǥåǯԅǔӋͶŅˬНȚ˱ʹ˨ĩ®ȲТјǙѧȣуΩϛƙǔȊґĄɢĚȈІɶȫһѽіʝůʠҗΙκοɊûѼǾφʸ£ΜіłηҗΔǔʺůʺļаǰӖǸӚǄТϿïƒɶƒÚÚηηѻУė˱Ǜɬ">2</a>, <a target="_blank" href="#50x50.4.3.4.ǸǿӳΔƌϡ˨еƙѫŰУĄʺŪКɠҞΧȎΪïϰǻΪϣοȲιĖɫ®ӯіөΧěɆǩÛΤƌǕжɚǫ˅ПŸԑѫЗ˾ӳѴΤðøǖήɰΊԅϵƌäҗėԧīıѵƸЉɫ˅ɕŐțǲʊɆþͶʻЀͺɋȋʉɕȎұĥɭϘѣұŸÂҚҭɠБӯŭϘ˻¢ˎǏʹκħŭϥЮł;Ɵ˅җ¡ȚȊКƸǥɲƌЈΧžė˪ʒĖηӋҞЀ˪Яˬ˻ЉůПʠΔėЗΤǰϛЈǉǏͶƸұɃϥðΙœƴϢҔʻǥƌǛөѻțϚťҚήϚʊʹȲʡЀþҔѣėʝҭĉɋðĥĉʠϿɌΟŸӏұЯǭіǄŽѸηīƒІƖґĄНŐǽΧϣʻħКҔкЉΟΎĚ®вҚŸ®еĮƸƴŅЉřԅķąÚėąοȊǈˀțɢķӳǭɋҚœȸŪΩУКȋļϛұуÂǽǿïɋѧʹþŪɫеφŽЪ§ȊЪЈĔƕĔÛӳКɋ®¢ЉѫŰĄуȚƟžȈкÚΎŐϵɠȊŰаřѫĥĥӧÚþȻʠɕжԉʸІέøӶȥǏϵɭҭʡȣφӳžοŃԌУһҚōЉ˅χʒŽ¢ŠÄΩåËʴԥΝЀļԉɕБļϭþɶĄħж˨ĻÄԧőǈʴɭЮԥʠķƌЗɫøʡǸłԌҔˉɝӋɰǾ§ȥҔηʝήϡҞЮӖЪұÄЯͺԉкșƌōƕŐťɌωҚԈΟϢƽǖțäѵÛʺƕӶ¢ǰԆȥЂѻԥκΪǯеԧǸɰЯȴƖЮʴȲȈϐɬӖӶБϢˬјűˇǥˬķ;ǾʡχɝӏеËϿЈηƫǉТԧ÷ƙѼЈϡԆǽɌǻҔʊΧӷͶПƫұБǲԉҏȊɊ΄ǄĄѸеБûԈΜĥÛʠβƫțˉҗȊ;ϣԆʒҞƒуȎșԅΎąƕˎӯǾĉȣӷωϸƖЬķƽʷˉǖœƸΎПχʒŃǲԑԌǔѣŐʝșĻǕѴѣ÷ґкѾ˪ėΝłțīԧˇěɃƒ;ƸуɲȫϐțǊТƕ§ѾøѧǔǩѽΧǊřЯԈω³ÛžĩŰƴ£ǰѻԈ">3</a>, <a target="_blank" href="#20x20.3.3.8.ʓʓʓʓʓʓʓʓʓʓʓʓʓʓʓʓʓʓʓʓʓʓʓʓԆԆʓʖԒҞХʯϐʓɣɥʓʓӻʓʓʓʓʓʓʓʓʓʓʓʓʓʓʓʓʓʓʓʓʓʓʓʓʓʓʓХ">4</a>, <a target="_blank" href="#20x20.4.2.8.ЂЂЂЄЂɬɊЂĜЂɬɊЂԈЂЂЂЂЂЂЂЂЂЂЂЂȋұЂԈЂɭǖЂĜЂӏЂЂЄЂӏЂЂЂЂɭǖЂԈЂȋұЂĜЂЂЂЂЄЂЂЂЂЂŸЂɬӶɊЗЂɬӶɊѴЂЂЂЂЂЂιЂЂЂЂĶȋұЂЂϯȋұЂЂЂЂЂ">5</a>, <a target="_blank" href="#10x10.3.2.8.ʓʓĎʓƛʓźɭϟӿʓʓƣʓϿʓХ">6</a><br>
+		<br>
+		for these next three, be sure to turn on "show vort path", under the "vortex" settings section<br>
+		<a target="_blank" href="#60x60.3.3.8.ΆқĆɅɢϫɌȟϕΆΆʓĆɅʷϫɌȦʓĆȟʓҐԒʷϫɌқʓҐȦʓϕԒηϫɌĀʊҐȦʓʓћԆԆɌϫɢƇқʓʓͻԆԆɌϫʷƇқΒʓ¿ԆԆɌҐηϕʓԆʊҐԆԆɌΆηʓźԆɢҐƽԆŠΆƽʓХԆɢƇƽɕŠΆԆʓХԆʷƇƿɌƚΆԆʓϫжηϕƿʯΆћηʓϫћԆϕʜΆћжηʓϫΆԆʊʜΆΆԆʷƇĀΆԆҞΆΆΆԆʷƇқĆƽʷĆɇ¿ƽҞҐȦĆɕηĆӅƇƽʊҐȟĆɌØ¿ȦƇƿʓ¿ΆΆʯɅ¿ȦϕЗʓĆΆˠΆĨҐқĬϐʓΆΆƚȟʖŭқʃɢϕΆԆɕȟɔƇқԆɢҐԒԆŠӅʖҐȦɔҞĆƿԆŠӅрҐȦɔϕΆԆԆɌӅʓ¿ӅрҐԒԆԆŠȟʓԗȟʓĆƿԆԆŠȟʓ¤ʯϕΆԆԆХɕɇʓɅɌˣԒԆηХɕΆΘɅɕΆԒԆɢХԆΆΆƿɕΆΆԆҞХԆΆΆƽŠΆΆԆҞϫԆӖΆƽɌɺΆƽҞɔԆӖʁɅɌʓĆƽҞԆԆΆқћҗʓ¿ƿԆԆŠɇʓ¿øʓ¿ƿԆԆӖӅРҐȟʓҐɅԆԆΆқηƇӅРҐƿԆŠɇХηƇӅʷҐƿԆӖӅϫԆϕȦη¿ƽԆΆқϫØϕȺʷ¿īΆΆʓ϶ӕϕӅϭΆʇΆɇʓƻқƇȟɌћΆΆȟʓŠȦƇȟʃɅɇ¿ӅźɕȦҐɇɔƽɇƇӅХɕȟĆɇʖɕɇϕȦʖԆΆΆΆХԆΆɰȦʖԆΆΆɿźԆΆɢʓɔԑʯΆɿқԆʯɢʓɔʯΆћŠқɔԑɢʓԆΆīɅŠȦʖԆҞʓԆΆƿƽɕȦϫԆҞʓɕΆƿԆɕӅϫԆʊʓɔΆɅԆԆӅźԆʓқɔӅɅԆԆȟʓπϕȦʖɢɅԆԆɝʓʓϕȦϫɢɅԆԆʯʓʓƇӅźɰɅɢɔӖқʓƇӅʓϕɅɢʖӖӅʓ¿ɇʓƇɅɢʖɌɇʓΆΆқ¿ɅɢϫɌɇϕΆ">7</a>, <a target="_blank" href="#50x50.3.3.8.ҐɅԆԆėӖɅԆϕћԆԆԆӖΆƽʷ¿ƽԆԆӖΆћԆ®ɅԆԆӖΆΆɅɢĆԆԆӖΆҐΆƽҐƿԆӖȟʓĆћҞΆΆΆȟʓϕΆЗ¿ΆΆȟʓʓҐԒɭΆΆȟʓΒʓĆϐĆΆȟʓʖɢƇɅƇΆȟʓʖԆʊĆɢΆȟʓХԆʷҐØҐȟʓźԆԆʊћɰȟʓɢԆėɢ¿ϐԙʓԆԆʯƿϕԒʊʓԆԆɌћҞĆɢʓԆԆŠΆЗƇɅʓԆϰԆ¢ԒʊͻҞʖӖɅҭ¿ʷҐØϫӖΆԆɰɅʓԒѴɌΆɅɢͻɢͻɢŠȟͻηҐЗҐЗʖȟƇƿϕɅ®ƿϫɝʓԒҞԒҞԒӯɌқ¿ʷ¿ʷȡɢŠȦɌЗҐЗҐЗʖȟ϶ƿɭɅɭƿХӖХԆҞԒҞԒҞƻӅɔʷ¿ʷȡɢϫɝϫʷҐЗҐЗʓŠȦπϕɅɭƿʓʖȟʓʓԒҞԒҞźɌқʓΆʷ¿ɢӻƻɇʓΆЗҐЗҐХӖӅΆƿɭɅƇȦɕΆΆƿҞԒҞɇϫɌΆƿʷ¿ɢĆϔԆʯƿʷҐЗҐȟϫɕƿʷϕɅƇΆʓɔԆʷʓԒҞΆӅźԆʷʓΆʷĆΆқϫʷʓΆЗҐ²ɇʓπʓΆƿ®ћʯӅʓʓΆƿҞΆǻΆқʓΆƿʷĆɅɌɇʓΆƿʷҐћԆʯӅΆƿʷϕΆƽɕΆΆƿηʓĆɅԆɌΆƿԆҞƇћԆԆʯƿɅԆХ">8</a>, <a target="_blank" href="#50x50.3.3.8.ʓĆɅʷʓȟԆΆʓĆɅԆʓĆϫŠΆĆɅԆʓ¿ӅɔӖΆɅԆʓҐɇźԆΆɅԆʓƇΆȦϫԆɅԆʓϕΆΆʓɔԆԆʓϕΆΆȟźԆԆʓϕΆΆΆȦġԆʓϕΆɅɌɇʓϫʓϕΆɅŠɇʓʓʓϕΆɅԆɇʓȦʓϕΆɅжɝʓ¿ȦϕΆɅɌΆқϕΆϕΆɅŠΆȦπĆʛΆɅԆʯȟʖҐΆΆɅԆʷαϫʯΆΆɅԆԆŭϔɌԒŠɅԆԆҞȦɕћԆжηʓɢŶʖӖԒԆηʓʓņϫŠΆƿԆʓʓƇϔɕΆћԆʊʓʓȦƻΆΆƿɢʓʓŶϫʯΕԒηʓʓαźӖʓ¿ƽʊʓĆқʃʓƇɅɢʓĆȦҕȦʊĆԆʓҐȟХœʷҐƿҞϕΆʓҗɔϕћηʓĆȦʃҕқΆƽʊҐɇҕҝœĆԒʷƇΆĀœӖҐΆԆʓΆȟϭȓȦΆƽʊĆīҕҝœҐɅɢҐƿȺøƅϕԒʷƇɅϭȓЃҞĆԆʓћɕҝœʷ¿ƽʊĆԆøɣԡƇɅɢҐƿŠЃȦϕԒʷƇɅԆœӖʓΆԆʓћԆɌ϶ȟĆƽʊĆԆԆ˂ʯΆƿɢҐƿҞҗƻΆƿʷƇɅɢ϶ĀɌƿԆʓћʷźϘԆėԆʊĆηʓʃХԆԆʊҐƿʊХӅʖԆʊƇɅҞʓɌʓԆʊϕћʷʓҕȟХʊϕΆηʓźӖȦʓϕΆƽʊņʖΆХ">9</a><br>
+		<br>
+		<br>
+		<hr>
+		<br>
+		<br>
+		initially inspired by <a href="https://twitter.com/AndrewM_Webb/status/1236274167437197320">this tweet by Andrew M. Webb</a><br>
+		<br>
+		created by <a href="https://lewismcombes.github.io/">@arctanpi</a> and <a href="https://www.schlaugh.com/u8k">@u8k</a><br>
+		<br>
+		discussion can be found <a href="https://www.schlaugh.com/~tagged/rps">here</a><br>
+		<br>
+		&lt;3
+		<br>
+		<div style="text-align:center">
+			<button onclick="removeElements('about-backing');">x</button>
+		</div>
+
+	</div>
+	</div>
+
 
   <script src = "rps.js"></script>
 </body>
